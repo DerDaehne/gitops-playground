@@ -25,11 +25,11 @@
           '';
         };
 
-        packages.default = pkgs.buildGoModule {
-          pname = "gop";
+        packages.${system}.default = pkgs.buildGoModule {
+          pname = "gitops-playground";
           version = "0.1.0";
           src = ./.;
-          vendorHash = null;
+          vendorHash = "sha256-GZJa45RH/0KcfJZKoM4yBiKhRa8+B3kxXyhrc7u7qR0=";
         };
 
       };
