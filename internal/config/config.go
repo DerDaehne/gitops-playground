@@ -204,23 +204,23 @@ type NamespaceConfig struct {
 }
 
 
-type OverwriteMode int
-type ContentRepoType int
-type VaultMode int
+type OverwriteMode string
+type ContentRepoType string
+type VaultMode string
 
 const (
-	FolderBased ContentRepoType = iota
-	Copy
-	Mirror
+	FolderBased	 ContentRepoType = "folder-based"
+	Copy		 ContentRepoType = "copy"
+	Mirror		 ContentRepoType = "mirror"
 )
 
 const (
-	Init OverwriteMode = iota
-	Reset
-	Upgrade
+	Init	 OverwriteMode = "init"
+	Reset	 OverwriteMode = "reset"
+	Upgrade	 OverwriteMode = "upgrade"
 )
 
 const (
-	dev VaultMode = iota
-	prod
+	dev		 VaultMode = "dev"
+	prod	 VaultMode = "prod"
 )

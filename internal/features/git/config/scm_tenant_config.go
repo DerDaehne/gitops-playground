@@ -39,9 +39,9 @@ func (s *SCMTenantConfig) Internal() bool {
 	return s.Gitlab.Internal || s.SCMManager.Internal
 }
 
-type SCMProviderType int
+type SCMProviderType string
 
 const (
-	GITLAB SCMProviderType = iota
-	SCM_MAANGER
+	GITLAB		 SCMProviderType = "gitlab"
+	SCM_MANAGER	 SCMProviderType = "scmmanager"
 )
