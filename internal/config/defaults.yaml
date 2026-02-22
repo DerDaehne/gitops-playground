@@ -1,0 +1,206 @@
+defaultadmincredentials:
+    username: "admin"
+    password: "admin"
+registry:
+    internal: true
+    tworegistries: false
+    active: false
+    internalport: 30000
+    url: ""
+    path: ""
+    username: ""
+    password: ""
+    proxyurl: ""
+    proxyusername: ""
+    proxypassword: ""
+    readonlyusername: ""
+    readonlypassword: ""
+    createimagepullsecret: false
+    helm:
+        chart: "docker-registry"
+        repourl: "https://twuni.github.io/docker-registry.helm"
+        version: "3.0.0"
+        values: {}
+jenkins:
+    internal: true
+    active: false
+    skiprestart: false
+    skipplugins: false
+    url: ""
+    username: "admin"
+    password: "admin"
+    metricsusername: "metrics"
+    metricspassword: "metrics"
+    mavencentralmirror: ""
+    additionalenvvars: {}
+    helm:
+        chart: "jenkins"
+        repourl: "https://charts.jenkins.io"
+        version: "5.8.43"
+        values: {}
+multitenant:
+    scmprovider: ""
+    gitlab:
+        url: ""
+        credentials:
+            username: ""
+            password: ""
+        parentgroupid: ""
+        gitopsusername: ""
+        defaultvisibility: ""
+    scmmanager:
+        internal: false
+        url: ""
+        credentials:
+            username: ""
+            password: ""
+        rootpath: ""
+        namespace: ""
+        gitopsusername: ""
+    centralargocdnamespace: ""
+    usededicatedinstance: false
+scmtenant:
+    scmprovider: ""
+    gitlab:
+        internal: false
+        url: ""
+        credentials:
+            username: ""
+            password: ""
+        parentgroudid: ""
+        gitopsusername: ""
+        defaultvisibility: ""
+    scmmanager:
+        internal: false
+        url: ""
+        namespace: ""
+        credentials:
+            username: ""
+            password: ""
+        rootpath: ""
+        urlforjenkins: ""
+        ingress: ""
+        skiprestart: false
+        skipplugins: false
+        gitopsusername: ""
+        helm:
+            chart: ""
+            repourl: ""
+            version: ""
+            values: {}
+application:
+    runninginsidek8s: false
+    nameprefixforenvvars: ""
+    internalkubernetesapiurl: ""
+    localhelmchartfolder: ""
+    namespaces:
+        dedicatednamespaces: []
+        tenantnamespaces: []
+    debug: false
+    trace: false
+    remote: false
+    openshift: false
+    insecure: false
+    nameprefix: ""
+    destroy: false
+    podresources: false
+    gitname: "GitOps-Playground"
+    gitemail: "playground@localhost.localdomain"
+    baseurl: ""
+    urlseperatorhyphen: false
+    mirrorrepos: false
+    skipcrds: false
+    namespaceisolation: false
+    netpols: false
+    clusteradmin: false
+    profile: ""
+features:
+    argocd:
+        configonly: false
+        active: false
+        operator: false
+        url: ""
+        env: {}
+        mailfrom: "argocd@example.com"
+        mailto: "app-team@example.com"
+        mailtoadmin: "infra@example.com"
+        resourceinclusionscluster: ""
+        namespace: "argocd"
+        values: {}
+    mail:
+        active: false
+        mailserver: false
+        mailserverurl: ""
+        smtpaddress: ""
+        smtpport: 0
+        smptcredentials:
+            username: ""
+            password: ""
+        helm:
+            chart: "mailhog"
+            repourl: "https://codecentric.github.io/helm-charts"
+            version: "5.0.1"
+            values: {}
+    monitoring:
+        active: false
+        grafanaurl: ""
+        grafanamailfrom: "grafana@example.com"
+        grafanamailto: "infra@example.com"
+        grafanaimage: ""
+        grafanasidecarimage: ""
+        prometheusimage: ""
+        prometheusoperatorimage: ""
+        prometheusconfigreloaderimage: ""
+        helm:
+            chart: "kube-prometheus-stack"
+            repourl: "https://prometheus-community.github.io/helm-charts"
+            version: "80.2.2"
+            values: {}
+    secrets:
+        active: false
+        externalsecrets:
+            image: ""
+            certcontrollerimage: ""
+            webhookimage: ""
+            helm:
+                chart: "external-secrets"
+                repourl: "https://charts.external-secrets.io"
+                version: "0.9.16"
+                values: {}
+        vault:
+            mode: "dev"
+            url: ""
+            image: ""
+            helm:
+                chart: "vault"
+                repourl: "https://helm.releases.hashicorp.com"
+                version: "0.25.0"
+                values: {}
+    ingress:
+        active: false
+        ingressnamespace: ""
+        image: ""
+        helm:
+            chart: "traefik"
+            repourl: "https://traefik.github.io/charts"
+            version: "39.0.0"
+            values: {}
+    certmanager:
+        active: false
+        image: ""
+        webhookimage: ""
+        cainjectorimage: ""
+        acmesolverimage: ""
+        startupapicheckimage: ""
+        helm:
+            chart: "cert-manager"
+            repourl: "https://charts.jetstack.io"
+            version: "1.16.1"
+            values: {}
+content:
+    examples: false
+    multitenancyexamples: false
+    repos: []
+    variables: {}
+    usewhitelist: false
+
