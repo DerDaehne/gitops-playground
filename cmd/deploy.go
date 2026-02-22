@@ -1,13 +1,9 @@
-/*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/DerDaehne/gitops-playground/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // deployCmd represents the deploy command
@@ -19,21 +15,12 @@ feature or config setting.
 
 you can turn everything on and off as you wish`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("deploy called")
+		var cfg config.Config
+		viper.Unmarshal(&cfg)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
 
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deployCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// deployCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	deployCmd.Flags().BoolP("argocd", "", false, "argocd: application lifecycle and gitops management")
-	deployCmd.Flags().BoolP("jenkins", "", false, "jenkins: the well-known build server")
 }
