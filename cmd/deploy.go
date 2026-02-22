@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/DerDaehne/gitops-playground/config"
+	"github.com/DerDaehne/gitops-playground/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
