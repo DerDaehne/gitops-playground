@@ -30,7 +30,7 @@
           pname = "gitops-playground";
           version = "0.1.0";
           src = ./.;
-          vendorHash = "sha256-kvzPyeOFN8zBcDBbTp1GxcdQP5MuKj56qT89rqT4GtI=";
+          vendorHash = "sha256-VTw/W99Sr2vsK6H234WfgKwmjBd4Gv6oTNtWOu8xfTM=";
         };
 
       };
