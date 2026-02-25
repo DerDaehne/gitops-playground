@@ -34,8 +34,18 @@ you can turn everything on and off as you wish`,
 		}
 
 		// IMPORTANT: the order of features here defines the order in which they are installed
+		// registry -> git -> jenkins -> argo -> ingress -> certmngr -> mail -> monitoring -> eso -> vault -> CL
 		allFeatures := []features.Feature{
+			&features.Registry{Config: globalConfig.Registry},
+			&features.Jenkins{Config: globalConfig.Jenkins},
 			&features.ArgoCD{Config: globalConfig.Features.ArgoCD},
+			&features.Ingress{Config: globalConfig.Features.Ingress},
+			&features.CertManager{Config: globalConfig.Features.CertManager},
+			&features.Mail{Config: globalConfig.Features.Mail},
+			&features.Monitoring{Config: globalConfig.Features.Monitoring},
+			&features.ExternalSecretsOperator{Config: globalConfig.Features.Secrets.ExternalSecrets},
+			&features.Vault{Config: globalConfig.Features.Secrets.Vault},
+			&features.ContentLoader{Config: globalConfig.Content},
 		}
 
 		for _, f := range allFeatures {
