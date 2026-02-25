@@ -37,7 +37,10 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "c", "config file (default is $HOME/.gitops-playground.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "$HOME/.gitops-playground.yaml", "config file to use")
+
+	rootCmd.PersistentFlags().Bool("debug", false, "print debug messages")
+	viper.BindPFlag("application.debug", rootCmd.PersistentFlags().Lookup("debug"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

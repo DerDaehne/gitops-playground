@@ -1,9 +1,12 @@
 package cmd
 
 import (
-	"github.com/DerDaehne/gitops-playground/internal/config"
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v2"
 )
 
 // deployCmd represents the deploy command
@@ -15,12 +18,13 @@ feature or config setting.
 
 you can turn everything on and off as you wish`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var cfg config.Config
-		viper.Unmarshal(&cfg)
+		if viper.GetBool("application.debug") {
+			settings, _ := yaml.Marshal(viper.AllSettings())
+			fmt.Fprintf(os.Stdout, "Config: \n%s\n", settings)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
-
 }
