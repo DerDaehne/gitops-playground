@@ -13,7 +13,7 @@ type Config struct {
 	Registry				 RegistryConfig
 	Jenkins					 JenkinsConfig
 	MultiTenant				 MultiTenantConfig
-	SCMTenant				 feature.SCMTenantConfig
+	SCM						 feature.SCMTenantConfig
 	Application				 ApplicationConfig
 	Features				 FeatureConfig
 	Content					 ContentLoaderConfig
