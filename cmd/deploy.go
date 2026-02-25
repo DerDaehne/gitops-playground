@@ -43,8 +43,8 @@ you can turn everything on and off as you wish`,
 			&features.CertManager{Config: globalConfig.Features.CertManager},
 			&features.Mail{Config: globalConfig.Features.Mail},
 			&features.Monitoring{Config: globalConfig.Features.Monitoring},
-			&features.ExternalSecretsOperator{Config: globalConfig.Features.Secrets.ExternalSecrets},
-			&features.Vault{Config: globalConfig.Features.Secrets.Vault},
+			&features.ExternalSecretsOperator{Config: globalConfig.Features.Secrets},
+			&features.Vault{Config: globalConfig.Features.Secrets},
 			&features.ContentLoader{Config: globalConfig.Content},
 		}
 

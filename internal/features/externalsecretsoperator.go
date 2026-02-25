@@ -3,7 +3,7 @@ package features
 import "github.com/DerDaehne/gitops-playground/internal/config"
 
 type ExternalSecretsOperator struct {
-	Config config.ExternalSecretsOperatorConfig
+	Config config.SecretsConfig
 }
 
 func (eso *ExternalSecretsOperator) Name() string {

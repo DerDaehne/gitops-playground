@@ -3,7 +3,7 @@ package features
 import "github.com/DerDaehne/gitops-playground/internal/config"
 
 type Vault struct {
-	Config config.VaultConfig
+	Config config.SecretsConfig
 }
 
 func (vault *Vault) Name() string {
