@@ -1,9 +1,13 @@
 package features
 
-import "github.com/DerDaehne/gitops-playground/internal/config"
+import (
+	"github.com/DerDaehne/gitops-playground/internal/config"
+	"k8s.io/client-go/kubernetes"
+)
 
 type ContentLoader struct {
 	Config config.ContentLoaderConfig
+	KubernetesClientSet kubernetes.Clientset
 }
 
 func (content *ContentLoader) Name() string {

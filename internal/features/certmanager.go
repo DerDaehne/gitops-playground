@@ -1,9 +1,13 @@
 package features
 
-import "github.com/DerDaehne/gitops-playground/internal/config"
+import (
+	"github.com/DerDaehne/gitops-playground/internal/config"
+	"k8s.io/client-go/kubernetes"
+)
 
 type CertManager struct {
 	Config config.CertManagerConfig
+	KubernetesClientSet kubernetes.Clientset
 }
 
 func (certmanager *CertManager) Name() string {

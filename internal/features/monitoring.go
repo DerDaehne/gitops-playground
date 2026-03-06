@@ -1,9 +1,13 @@
 package features
 
-import "github.com/DerDaehne/gitops-playground/internal/config"
+import (
+	"github.com/DerDaehne/gitops-playground/internal/config"
+	"k8s.io/client-go/kubernetes"
+)
 
 type Monitoring struct {
 	Config config.MonitoringConfig
+	KubernetesClientSet kubernetes.Clientset
 }
 
 func (monitoring *Monitoring) Name() string {

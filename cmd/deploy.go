@@ -6,6 +6,7 @@ import (
 
 	"github.com/DerDaehne/gitops-playground/internal/config"
 	"github.com/DerDaehne/gitops-playground/internal/features"
+	"github.com/DerDaehne/gitops-playground/internal/kubeutils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.yaml.in/yaml/v2"
@@ -28,28 +29,35 @@ you can turn everything on and off as you wish`,
 		
 		println ("Starting Deployment ...")
 
+
 		if globalConfig.Application.Debug {
 			settings, _ := yaml.Marshal(viper.AllSettings())
 			fmt.Fprintf(os.Stdout, "Config: \n%s\n", settings)
 		}
 
+		kubernetesClientSet := kubeutils.GetKubernetesClient("")
 		// IMPORTANT: the order of features here defines the order in which they are installed
 		// registry -> git -> jenkins -> argo -> ingress -> certmngr -> mail -> monitoring -> eso -> vault -> CL
 		allFeatures := []features.Feature{
-			&features.Registry{Config: globalConfig.Registry},
-			&features.Jenkins{Config: globalConfig.Jenkins},
-			&features.ArgoCD{Config: globalConfig.Features.ArgoCD},
-			&features.Ingress{Config: globalConfig.Features.Ingress},
-			&features.CertManager{Config: globalConfig.Features.CertManager},
-			&features.Mail{Config: globalConfig.Features.Mail},
-			&features.Monitoring{Config: globalConfig.Features.Monitoring},
-			&features.ExternalSecretsOperator{Config: globalConfig.Features.Secrets},
-			&features.Vault{Config: globalConfig.Features.Secrets},
-			&features.ContentLoader{Config: globalConfig.Content},
+			&features.Registry{Config: globalConfig.Registry, KubernetesClientSet: kubernetesClientSet, NamePrefix: globalConfig.Application.NamePrefix},
+			&features.Jenkins{Config: globalConfig.Jenkins, KubernetesClientSet: kubernetesClientSet},
+			&features.ArgoCD{Config: globalConfig.Features.ArgoCD, KubernetesClientSet: kubernetesClientSet},
+			&features.Ingress{Config: globalConfig.Features.Ingress, KubernetesClientSet: kubernetesClientSet},
+			&features.CertManager{Config: globalConfig.Features.CertManager, KubernetesClientSet: kubernetesClientSet},
+			&features.Mail{Config: globalConfig.Features.Mail, KubernetesClientSet: kubernetesClientSet},
+			&features.Monitoring{Config: globalConfig.Features.Monitoring, KubernetesClientSet: kubernetesClientSet},
+			&features.ExternalSecretsOperator{Config: globalConfig.Features.Secrets, KubernetesClientSet: kubernetesClientSet},
+			&features.Vault{Config: globalConfig.Features.Secrets, KubernetesClientSet: kubernetesClientSet},
+			&features.ContentLoader{Config: globalConfig.Content, KubernetesClientSet: kubernetesClientSet},
 		}
 
 		for _, f := range allFeatures {
-			if f.IsEnabled() { println(f.Name()) }
+			if f.IsEnabled() {
+				err := f.Install()
+				if err != nil {
+					println("Error while installing Feature \"" + f.Name() + "\": " + err.Error())
+				}
+			}
 		}
 	},
 }

@@ -1,9 +1,13 @@
 package features
 
-import "github.com/DerDaehne/gitops-playground/internal/config"
+import (
+	"github.com/DerDaehne/gitops-playground/internal/config"
+	"k8s.io/client-go/kubernetes"
+)
 
 type Vault struct {
 	Config config.SecretsConfig
+	KubernetesClientSet kubernetes.Clientset
 }
 
 func (vault *Vault) Name() string {

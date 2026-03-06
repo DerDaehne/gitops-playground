@@ -1,9 +1,13 @@
 package features
 
-import "github.com/DerDaehne/gitops-playground/internal/config"
+import (
+	"github.com/DerDaehne/gitops-playground/internal/config"
+	"k8s.io/client-go/kubernetes"
+)
 
 type Mail struct {
 	Config config.MailConfig
+	KubernetesClientSet kubernetes.Clientset
 }
 
 func (mail *Mail) Name() string {
