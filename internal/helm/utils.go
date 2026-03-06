@@ -1,6 +1,9 @@
 package helm
 
 import (
+	"errors"
+	"fmt"
+	"log/slog"
 	"os"
 
 	"go.yaml.in/yaml/v3"
@@ -11,6 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
+	"helm.sh/helm/v3/pkg/storage/driver"
 )
 
 func addHelmRepository(helmConfig HelmConfig, settings *cli.EnvSettings) error {
@@ -38,29 +42,62 @@ func addHelmRepository(helmConfig HelmConfig, settings *cli.EnvSettings) error {
 	return repositoryFile.WriteFile(repositoryFilePath, 0644)
 }
 
-func DeployHelmChart (helmConfig HelmConfig, namespace string, releaseName string) (*release.Release, error) {
-	settings := cli.New()
-
+func installHelmChart(helmConfig HelmConfig, namespace string, releaseName string, actionConfig *action.Configuration, settings *cli.EnvSettings) (*release.Release, error) {
 	err := addHelmRepository(helmConfig, settings)
 	if err != nil { return nil, err }
 
-	actionConfig := new(action.Configuration)
-	err = actionConfig.Init(settings.RESTClientGetter(), namespace, "secret", nil)
-	if err != nil { return nil, err }
 
-	actionConfig.KubeClient = kube.New(settings.RESTClientGetter())
-
-	client := action.NewInstall(actionConfig)
-	client.ReleaseName = releaseName
-	client.Namespace = namespace
-	client.Version = helmConfig.Version
-	client.CreateNamespace = true
+	deployClient := action.NewInstall(actionConfig)
+	deployClient.ReleaseName = releaseName
+	deployClient.Namespace = namespace
+	deployClient.Version = helmConfig.Version
+	deployClient.CreateNamespace = true
 	
-	chartPath, err := client.ChartPathOptions.LocateChart(helmConfig.Chart + "/" + helmConfig.Chart, settings)
+	chartPath, err := deployClient.ChartPathOptions.LocateChart(helmConfig.Chart + "/" + helmConfig.Chart, settings)
 	if err != nil { return nil, err }
 
 	chart, err := loader.Load(chartPath)
 	if err != nil { return nil, err }
 
-	return client.Run(chart, helmConfig.Values)
+	return deployClient.Run(chart, helmConfig.Values)
+}
+
+func upgradeHelmChart(helmConfig HelmConfig, namespace string, releaseName string, actionConfig *action.Configuration, settings *cli.EnvSettings) (*release.Release, error) {
+	err := addHelmRepository(helmConfig, settings)
+	if err != nil { return nil, err }
+
+	upgradeClient := action.NewUpgrade(actionConfig)
+	upgradeClient.Namespace = namespace
+	upgradeClient.Version = helmConfig.Version
+	
+	chartPath, err := upgradeClient.ChartPathOptions.LocateChart(helmConfig.Chart + "/" + helmConfig.Chart, settings)
+	if err != nil { return nil, err }
+
+	chart, err := loader.Load(chartPath)
+	if err != nil { return nil, err }
+
+	return upgradeClient.Run(releaseName, chart, helmConfig.Values)
+}
+
+func DeployHelmChart (helmConfig HelmConfig, namespace string, releaseName string) (*release.Release, error) {
+	settings := cli.New()
+
+	actionConfig := new(action.Configuration)
+	err := actionConfig.Init(settings.RESTClientGetter(), namespace, "secret", func(format string, v ...interface{}) {
+		slog.Debug(fmt.Sprintf(format, v...))	
+	})
+	if err != nil { return nil, err }
+
+	actionConfig.KubeClient = kube.New(settings.RESTClientGetter())
+
+	historyClient := action.NewHistory(actionConfig)
+	historyClient.Max = 1
+	_, err = historyClient.Run(releaseName)
+
+	if err != nil && errors.Is(err, driver.ErrReleaseNotFound) {
+		return installHelmChart(helmConfig, namespace, releaseName, actionConfig, settings)
+	}
+	if err != nil { return nil, err }
+
+	return upgradeHelmChart(helmConfig, namespace, releaseName, actionConfig, settings)
 }

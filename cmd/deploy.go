@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"log/slog"
 
 	"github.com/DerDaehne/gitops-playground/internal/config"
 	"github.com/DerDaehne/gitops-playground/internal/features"
@@ -24,15 +24,12 @@ you can turn everything on and off as you wish`,
 
 		var globalConfig config.Config
 		if err := viper.Unmarshal(&globalConfig); err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR while unmarshaling config\n")
+			slog.Error("There was an error while unmarshaling the config: " + err.Error())
 		}
-		
-		println ("Starting Deployment ...")
-
 
 		if globalConfig.Application.Debug {
 			settings, _ := yaml.Marshal(viper.AllSettings())
-			fmt.Fprintf(os.Stdout, "Config: \n%s\n", settings)
+			slog.Debug(fmt.Sprintf("Config: \n%s\n", settings))
 		}
 
 		kubernetesClientSet := kubeutils.GetKubernetesClient("")
@@ -51,14 +48,17 @@ you can turn everything on and off as you wish`,
 			&features.ContentLoader{Config: globalConfig.Content, KubernetesClientSet: kubernetesClientSet},
 		}
 
+		slog.Info("Starting Deployment...")
 		for _, f := range allFeatures {
 			if f.IsEnabled() {
+				slog.Info("Installing Feature " + f.Name())
 				err := f.Install()
 				if err != nil {
-					println("Error while installing Feature \"" + f.Name() + "\": " + err.Error())
+					slog.Error("Error while installing Feature " + f.Name() + ": " + err.Error())
 				}
 			}
 		}
+		slog.Info("Deployment finished successfully!")
 	},
 }
 
