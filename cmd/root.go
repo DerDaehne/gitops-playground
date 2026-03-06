@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/DerDaehne/gitops-playground/internal/config"
@@ -19,6 +20,11 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initLogger()
+		
+		
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -67,4 +73,18 @@ func initConfig() {
 	if err := viper.MergeInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func initLogger() {
+	logLevel := slog.LevelInfo
+
+	if viper.GetBool("application.debug") {
+		logLevel = slog.LevelDebug
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+
+	slog.SetDefault(logger)
 }
