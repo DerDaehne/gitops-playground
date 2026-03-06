@@ -1,8 +1,12 @@
 package kubeutils
 
 import (
+	"context"
 	"path/filepath"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -29,4 +33,29 @@ func GetKubernetesClient(kubeconfigPath string) kubernetes.Clientset {
 	}	
 
 	return *clientset
+}
+
+func CreateNodePortServiceTCP(clientset *kubernetes.Clientset, namespace string, appName string, serviceName string, podPort int, nodePort int) error {
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceName,
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Selector: map[string]string{
+				"app": appName,
+			},
+			Ports: []corev1.ServicePort{
+				{
+					TargetPort: intstr.FromInt(podPort),
+					NodePort: int32(nodePort),
+					Protocol: corev1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	_, err := clientset.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
+	return err
 }
