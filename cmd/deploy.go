@@ -6,6 +6,7 @@ import (
 
 	"github.com/DerDaehne/gitops-playground/internal/config"
 	"github.com/DerDaehne/gitops-playground/internal/features"
+	"github.com/DerDaehne/gitops-playground/internal/features/git"
 	"github.com/DerDaehne/gitops-playground/internal/kubeutils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -37,6 +38,7 @@ you can turn everything on and off as you wish`,
 		// registry -> git -> jenkins -> argo -> ingress -> certmngr -> mail -> monitoring -> eso -> vault -> CL
 		allFeatures := []features.Feature{
 			&features.Registry{Config: globalConfig.Registry, KubernetesClientSet: kubernetesClientSet, NamePrefix: globalConfig.Application.NamePrefix},
+			&git.GitHandler{Config: &globalConfig},
 			&features.Jenkins{Config: globalConfig.Jenkins, KubernetesClientSet: kubernetesClientSet},
 			&features.ArgoCD{Config: globalConfig.Features.ArgoCD, KubernetesClientSet: kubernetesClientSet},
 			&features.Ingress{Config: globalConfig.Features.Ingress, KubernetesClientSet: kubernetesClientSet},
@@ -46,6 +48,14 @@ you can turn everything on and off as you wish`,
 			&features.ExternalSecretsOperator{Config: globalConfig.Features.Secrets, KubernetesClientSet: kubernetesClientSet},
 			&features.Vault{Config: globalConfig.Features.Secrets, KubernetesClientSet: kubernetesClientSet},
 			&features.ContentLoader{Config: globalConfig.Content, KubernetesClientSet: kubernetesClientSet},
+		}
+
+		slog.Info("Validating Features...")
+		for _, f := range allFeatures {
+			if err := f.Validate(); err != nil {
+				slog.Error("Error while validating Feature " + f.Name() + ": " + err.Error())
+				return
+			}
 		}
 
 		slog.Info("Starting Deployment...")
