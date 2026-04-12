@@ -25,3 +25,9 @@ terraform/account.json
 gitops-playground.jar
 jenkins-plugins
 /charts/
+
+# local kubeconfig for dev shell
+.kube/
+
+# direnv / nix-direnv cache
+.direnv/

@@ -2,9 +2,9 @@ package config
 
 import (
 	"helm.sh/helm/v3/pkg/chartutil"
-	"github.com/DerDaehne/gitops-playground/internal/features/git/config"
 	"github.com/DerDaehne/gitops-playground/internal/credentials"
 	"github.com/DerDaehne/gitops-playground/internal/helm"
+	gitconfig "github.com/DerDaehne/gitops-playground/internal/git/config"
 )
 
 // Config represents the global configuration of the application
@@ -13,7 +13,7 @@ type Config struct {
 	Registry				 RegistryConfig
 	Jenkins					 JenkinsConfig
 	MultiTenant				 MultiTenantConfig
-	SCM						 feature.SCMTenantConfig
+	SCM						 gitconfig.SCMTenantConfig
 	Application				 ApplicationConfig
 	Features				 FeatureConfig
 	Content					 ContentLoaderConfig

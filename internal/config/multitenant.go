@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/DerDaehne/gitops-playground/internal/features/git/config"
+	feature "github.com/DerDaehne/gitops-playground/internal/git/config"
 )
 
 type MultiTenantConfig struct {
