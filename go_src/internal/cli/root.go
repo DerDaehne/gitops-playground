@@ -30,8 +30,12 @@ import (
 func Execute(args []string) (ReturnCode, error) {
 	logpkg.Configure(os.Stderr, modeFromArgs(args))
 
-	cfg := config.New()
-	cmd := newRootCmd(cfg)
+	// The CLI flag set is bound to a Config instance: that instance receives
+	// the *CLI* values. The actual install/destroy run will start with a
+	// merged Config (defaults → profile → config-map → config-file) and
+	// then apply CLI overrides on top via applyCLIOverrides.
+	cliCfg := config.New()
+	cmd := newRootCmd(cliCfg)
 	cmd.SetArgs(args)
 
 	if err := cmd.Execute(); err != nil {
@@ -64,8 +68,14 @@ func newRootCmd(cfg *config.Config) *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout(), VersionString())
 				return nil
 			}
+
+			merged, err := loadAndInitConfig(cmd.Context(), cfg)
+			if err != nil {
+				return err
+			}
+
 			if outputCfg {
-				yaml, err := cfg.ToYAML(false)
+				yaml, err := merged.ToYAML(false)
 				if err != nil {
 					return err
 				}

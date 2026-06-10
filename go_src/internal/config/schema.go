@@ -79,16 +79,16 @@ type ApplicationSchema struct {
 	Namespaces              NamespaceSchema  `yaml:"namespaces"`
 	ConfigFiles             []string         `yaml:"configFiles,omitempty"`
 	ConfigMaps              []string         `yaml:"configMaps,omitempty"`
-	Debug                   bool             `yaml:"-"`
-	Trace                   bool             `yaml:"-"`
+	Debug                   bool             `yaml:"debug,omitempty"`
+	Trace                   bool             `yaml:"trace,omitempty"`
 	OutputConfigFile        bool             `yaml:"-"`
 	Insecure                bool             `yaml:"insecure"`
 	Openshift               bool             `yaml:"openshift"`
 	Username                string           `yaml:"username"`
 	Password                string           `yaml:"password"`
-	Yes                     bool             `yaml:"-"`
+	Yes                     bool             `yaml:"yes,omitempty"`
 	NamePrefix              string           `yaml:"namePrefix"`
-	Destroy                 bool             `yaml:"-"`
+	Destroy                 bool             `yaml:"destroy,omitempty"`
 	PodResources            bool             `yaml:"podResources"`
 	GitName                 string           `yaml:"gitName"`
 	GitEmail                string           `yaml:"gitEmail"`
