@@ -1,0 +1,24 @@
+# $schema: https://raw.githubusercontent.com/cloudogu/gitops-playground/main/docs/configuration.schema.json
+application:
+  baseUrl: http://localhost
+  password: "admin"
+features:
+  certManager:
+    active: true
+  argocd:
+    active: true
+    operator: false
+  ingress:
+    active: true
+  monitoring:
+  secrets:
+    vault:
+      mode: "dev"
+jenkins:
+  password: "admin"
+registry:
+  active: true
+  password: "admin"
+scm:
+  scmManager:
+    password: "admin"
