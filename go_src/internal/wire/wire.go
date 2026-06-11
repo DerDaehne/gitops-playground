@@ -17,6 +17,7 @@ import (
 
 	"github.com/cloudogu/gitops-playground/go/internal/config"
 	"github.com/cloudogu/gitops-playground/go/internal/deployment"
+	"github.com/cloudogu/gitops-playground/go/internal/destroy"
 	"github.com/cloudogu/gitops-playground/go/internal/exec"
 	"github.com/cloudogu/gitops-playground/go/internal/feature"
 	"github.com/cloudogu/gitops-playground/go/internal/git"
@@ -42,11 +43,12 @@ import (
 // can keep a handle (e.g. to read kube-context for log lines) without
 // re-instantiating them.
 type Components struct {
-	K8s     *k8s.Client
-	Helm    helm.Client
-	Runner  runner.Runner
-	Deploy  deployment.Strategy
-	SCM     *scmmanager.Client
+	K8s           *k8s.Client
+	Helm          helm.Client
+	Runner        runner.Runner
+	Destroyer     *destroy.Destroyer
+	Deploy        deployment.Strategy
+	SCM           *scmmanager.Client
 	JenkinsClient *jenkins.Client
 }
 
@@ -147,7 +149,21 @@ func Build(ctx context.Context, cfg *config.Config, opts BuildOptions) (*Compone
 		Registry: registry,
 		// PersistConfig is left nil for now; the implementation hooks
 		// into k8s.Client.ApplyGenericSecret once the cfg→secret mapping
-		// is finalised (planned for phase 5 alongside the destroy path).
+		// is finalised (planned alongside the destroy path).
+	}
+
+	c.Destroyer = destroy.New()
+	c.Destroyer.Register(
+		destroy.ArgoCDHandler{K8s: c.K8s, Helm: c.Helm},
+	)
+	if cfg.Jenkins.Active {
+		client, err := jenkinsFactory(cfg)
+		if err == nil {
+			c.Destroyer.Register(destroy.JenkinsHandler{Client: client})
+		}
+	}
+	if c.SCM != nil {
+		c.Destroyer.Register(destroy.ScmmHandler{Client: c.SCM})
 	}
 	return c, nil
 }

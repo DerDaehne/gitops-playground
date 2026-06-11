@@ -89,9 +89,7 @@ func newRootCmd(cfg *config.Config) *cobra.Command {
 				return err
 			}
 			if merged.Application.Destroy {
-				// Destroy path lands in phase 5. For now, refuse loudly
-				// rather than no-op.
-				return errors.New("destroy not yet implemented in the Go port (see phase 5)")
+				return comps.Destroyer.Destroy(cmd.Context(), merged)
 			}
 			return comps.Runner.Install(cmd.Context(), merged)
 		},
