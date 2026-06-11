@@ -1,0 +1,151 @@
+{
+  description = "gitops-playground Go port — dev shell, build and container for cmd/gop";
+
+  inputs = {
+    # nixos-unstable currently ships Go 1.25+, which easily satisfies the
+    # `go 1.22` directive in go_src/go.mod.
+    nixpkgs.url     = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+
+        # Runtime tools the Go binary shells out to. They are added to the
+        # dev shell AND wrapped onto the built binary's PATH so installed
+        # builds find helm/kubectl deterministically – not via the user's
+        # ambient PATH.
+        runtimeTools = [
+          pkgs.kubectl
+          pkgs.kubernetes-helm
+          pkgs.git
+        ];
+
+        # The Go module lives in ./go_src. Keeping it there means the
+        # Groovy original under ./src/main/groovy stays an independent
+        # build target.
+        gop = pkgs.buildGoModule {
+          pname   = "gop";
+          version = "0.1.0-dev";
+          src     = ./go_src;
+
+          subPackages = [ "cmd/gop" ];
+
+          # First-time setup: leave `vendorHash = pkgs.lib.fakeHash;`,
+          # run `nix build`, copy the printed sha256 into vendorHash and
+          # commit the value. Updates to go.sum repeat that cycle.
+          vendorHash = pkgs.lib.fakeHash;
+
+          env.CGO_ENABLED = 0;
+
+          ldflags = [
+            "-s" "-w"
+            "-X" "github.com/cloudogu/gitops-playground/go/internal/cli.Version=${self.shortRev or "dev"}"
+            "-X" "github.com/cloudogu/gitops-playground/go/internal/cli.Commit=${self.rev or "unknown"}"
+          ];
+
+          # Run `go test ./...` during the build so `nix build` /
+          # `nix flake check` exercise the suite.
+          doCheck = true;
+
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          postInstall = ''
+            wrapProgram $out/bin/gop \
+              --prefix PATH : ${pkgs.lib.makeBinPath runtimeTools}
+          '';
+
+          meta = with pkgs.lib; {
+            description = "gitops-playground CLI (Go port)";
+            homepage    = "https://github.com/cloudogu/gitops-playground";
+            license     = licenses.agpl3Only;
+            mainProgram = "gop";
+          };
+        };
+
+        # OCI image. `nix build .#oci` produces a load-able tarball; push
+        # with skopeo or `docker load < $(nix build .#oci --print-out-paths)`.
+        oci = pkgs.dockerTools.buildLayeredImage {
+          name = "gop";
+          tag  = "latest";
+
+          contents = [
+            gop
+            pkgs.kubernetes-helm
+            pkgs.kubectl
+            pkgs.cacert
+          ];
+
+          config = {
+            Entrypoint = [ "${gop}/bin/gop" ];
+            WorkingDir = "/workspace";
+            User       = "65532:65532";
+            Env = [
+              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "PATH=/bin"
+            ];
+            Labels = {
+              "org.opencontainers.image.source"      = "https://github.com/cloudogu/gitops-playground";
+              "org.opencontainers.image.title"       = "gop";
+              "org.opencontainers.image.description" = "GitOps Playground CLI (Go port)";
+            };
+          };
+        };
+      in {
+        packages = {
+          default = gop;
+          gop     = gop;
+          oci     = oci;
+        };
+
+        apps.default = flake-utils.lib.mkApp { drv = gop; };
+
+        devShells.default = pkgs.mkShell {
+          packages = [
+            pkgs.go
+            pkgs.gopls
+            pkgs.gotools
+            pkgs.go-tools
+            pkgs.golangci-lint
+            pkgs.delve
+            pkgs.gnumake
+            pkgs.git
+            pkgs.kubernetes-helm
+            pkgs.kubectl
+            # container build helpers
+            pkgs.docker-buildx
+            pkgs.skopeo
+          ];
+
+          shellHook = ''
+            echo "gitops-playground devshell"
+            echo "  go      : $(go version 2>/dev/null || echo n/a)"
+            echo "  helm    : $(helm version --short 2>/dev/null || echo n/a)"
+            echo "  kubectl : $(kubectl version --client=true 2>/dev/null | head -n1 || echo n/a)"
+            export GOFLAGS="-mod=mod"
+            # All Go commands operate from go_src/ – chdir for convenience.
+            if [ -d "$PWD/go_src" ]; then cd "$PWD/go_src" || true; fi
+          '';
+        };
+
+        # `nix flake check` builds the package (which already runs the Go
+        # tests via doCheck) and additionally exercises golangci-lint.
+        checks = {
+          build = gop;
+
+          golangci-lint = pkgs.runCommand "golangci-lint" {
+            nativeBuildInputs = [ pkgs.go pkgs.golangci-lint ];
+          } ''
+            cp -r ${./go_src} src
+            chmod -R u+w src
+            cd src
+            export HOME=$TMPDIR
+            export GOFLAGS=-mod=mod
+            golangci-lint run ./... > $out
+          '';
+        };
+
+        formatter = pkgs.nixpkgs-fmt;
+      });
+}

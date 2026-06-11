@@ -7,12 +7,16 @@ on:
       - 'feature/go_port'
     paths:
       - 'go_src/**'
+      - 'flake.nix'
+      - 'flake.lock'
   pull_request:
     paths:
       - 'go_src/**'
+      - 'flake.nix'
+      - 'flake.lock'
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,8 +30,10 @@ jobs:
           cache: true
           cache-dependency-path: go_src/go.sum
 
-      - name: tidy
-        run: go mod tidy -diff || (echo "go.mod / go.sum out of date" && go mod tidy && git diff && exit 1)
+      - name: tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
 
       - name: vet
         run: go vet ./...
@@ -37,3 +43,51 @@ jobs:
 
       - name: build
         run: go build -trimpath -o bin/gop ./cmd/gop
+
+  container:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: registry login (push only on main)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build (and push on main)
+        uses: docker/build-push-action@v6
+        with:
+          context: go_src
+          file: go_src/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref == 'refs/heads/main' }}
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository }}-go:latest
+            ghcr.io/${{ github.repository }}-go:${{ github.sha }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: nix flake check
+        run: nix flake check --print-build-logs --no-update-lock-file
