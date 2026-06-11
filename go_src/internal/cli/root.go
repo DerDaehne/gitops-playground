@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudogu/gitops-playground/go/internal/config"
 	logpkg "github.com/cloudogu/gitops-playground/go/internal/log"
+	"github.com/cloudogu/gitops-playground/go/internal/wire"
 
 	"github.com/spf13/cobra"
 )
@@ -82,11 +83,17 @@ func newRootCmd(cfg *config.Config) *cobra.Command {
 				fmt.Fprint(cmd.OutOrStdout(), yaml)
 				return nil
 			}
-			// Real install/destroy is wired up once the application runner
-			// (Phase 4) lands. For now we keep the command runnable so
-			// --help / --version / --output-config-file work standalone.
-			fmt.Fprintln(cmd.OutOrStdout(), "install/destroy not yet implemented")
-			return nil
+
+			comps, err := wire.Build(cmd.Context(), merged, wire.BuildOptions{})
+			if err != nil {
+				return err
+			}
+			if merged.Application.Destroy {
+				// Destroy path lands in phase 5. For now, refuse loudly
+				// rather than no-op.
+				return errors.New("destroy not yet implemented in the Go port (see phase 5)")
+			}
+			return comps.Runner.Install(cmd.Context(), merged)
 		},
 	}
 
