@@ -1,35 +1,42 @@
-# Ignore all
-*
+# Build/test outputs
+bin/
+dist/
+*.test
+*.out
+*.prof
+coverage.*
 
-# Allowlist
-!applications/
-!examples/
-!exercises/
-!argocd/
-!docker-registry/
-!jenkins/
-!scm-manager/
-!scripts/jenkins/
-!scripts/scm-manager/
-!scripts/utils.sh
-!scripts/apply-ng.sh
-!scripts/downloadHelmCharts.sh
-!templates/kubernetes/rbac/
-!.curlrc
-!LICENSE
+# IDE / editor
+.idea/
+.vscode/
+.classpath
+.project
+.settings/
 
-# groovy cli
-!src
-!pom.xml
-!mvnw
-!.mvn
-!compiler.groovy
+# Local config / secrets
+*.env
+.env*
+*.local
+*.pem
+*.key
+*.crt
+kubeconfig
+.kube/
 
-# Including .git is risky, but required so maven can read the build number. At least keep it to a minium.
-!.git/HEAD
-!.git/refs/heads
-!.git/refs/tags
-!.git/objects
-# .git/objects/ is needed to get current commit, but pack contains most files, but should not be needed. 
-# However, on Jenkins we still run into:  Missing unknown 8a948f.. so ignore for now 🤷‍
-# .git/objects/pack
+# Docs not needed for the build (planning docs stay because tests are
+# embedded with embed.FS only from internal/profile/profiles/)
+PORTING_PLAN.md
+SPECS.md
+BUILD.md
+REMAINING.md
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Don't ship the Dockerfile and its ignore into the image
+Dockerfile
+.dockerignore
+
+# CI workflow is for the host repo, not the image
+.github/
