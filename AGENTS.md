@@ -33,7 +33,138 @@ Everything you build must serve that goal. If you find yourself adding a
 generic abstraction that no current feature consumes, stop and re-check
 the brief.
 
-## 2. Boot sequence (first thing every agent reads)
+## 2. Working with the human
+
+You are not authorised to invent decisions. When the next step has
+multiple defensible answers — different APIs, different scope, an
+ambiguous error to triage, a design trade-off you cannot resolve from
+the docs in this repo — **stop and ask**. Silent guessing is the single
+most expensive failure mode for agents on this code base.
+
+### 2.1 When to ask (and when not to)
+
+Ask when **any** of these are true:
+
+- Two or more implementations would be reasonable and the existing
+  code does not point at one over the other.
+- A constraint in `AGENTS.md`, `SPECS.md`, `PORTING_PLAN.md` or
+  `REMAINING.md` contradicts what the human just requested.
+- An error message is ambiguous (multiple likely root causes) and the
+  fixes are not symmetric in risk.
+- The change would touch `retired/`, `.github/workflows/`, secrets,
+  `go.mod`, `flake.nix`, `Dockerfile`, or anything else that affects
+  shared state outside your local working copy.
+
+Do **not** ask when the choice is a mechanical refactor, a docstring
+fix, a test that follows an obvious pattern from a sibling file, or
+when a single rule in `AGENTS.md` already resolves the ambiguity.
+
+### 2.2 Format of the question
+
+Keep it tight. The human reads dozens of agent questions a day.
+
+1. **One-sentence problem statement** in plain prose. State the
+   observable fact, the file + line if relevant, and what the agent
+   needs to proceed. No history, no apologies.
+2. **Up to three numbered options.** Each option is one sentence
+   describing what you would do and one sentence on the trade-off.
+   Never more than three; if you cannot narrow it to three, the
+   options are not orthogonal enough — go back and group them.
+3. **Your recommendation**, marked as such. If you cannot recommend,
+   say "no recommendation, needs human judgement". The recommendation
+   is not a vote of confidence; it is the agent's best guess so the
+   human knows what they would get from a default reply.
+
+Template:
+
+```
+**Problem**: <one sentence, factual>
+
+1. <option A: action> — <trade-off>
+2. <option B: action> — <trade-off>
+3. <option C: action> — <trade-off>
+
+**Recommended**: <number>, because <one clause>.
+```
+
+### 2.3 How to read what the human says back
+
+Every human reply falls into one of three categories. Identify the
+category first; the right next action depends on it.
+
+#### (a) Error output from the application or CI
+
+Triggers: pasted stack trace, compiler output, `make`/`nix`/`docker`
+exit codes, GitHub Actions log fragments, kubectl error text.
+
+What to do:
+
+- Treat the paste as **evidence**, not as a brief. Do not "interpret"
+  it into prose; quote the relevant line back when discussing it.
+- Localise the failure to a specific file, line and call site before
+  proposing a fix.
+- Check whether `TEST_PLAN.md` already lists this finding from a
+  previous iteration; if so, link to it rather than re-discovering it.
+- If the root cause is uncertain, treat the situation as §2.1 ("Ask")
+  and offer up to three diagnoses with the cheapest verification step
+  per diagnosis.
+- Only patch after the cause is named. Do not "fix and hope".
+
+#### (b) Half-refined feature or change request
+
+Triggers: "we should add", "it would be nice if", "make it possible
+to", "I want a flag for", a one-paragraph user story with no
+acceptance criteria.
+
+What to do:
+
+- Resist the urge to implement. The request is intentionally
+  under-specified.
+- Ask **targeted** questions in three groups, in this order, stopping
+  as soon as you have a viable plan:
+  1. **Scope**: what is in, what is out. Who is the user. What
+     happens to existing config / CLI / API surface.
+  2. **Shape**: what the public surface looks like — flag name, YAML
+     key, struct field — and where the responsibility lives
+     (which package, which existing interface).
+  3. **Done criteria**: what tests demonstrate it works; what
+     telemetry, log line or visible behaviour signals success in
+     production.
+- Each question is closed-form when possible ("Do you want X or Y?")
+  not open-ended ("How do you want this to work?"). Open-ended
+  questions are slow and produce vague answers.
+- Wait for answers before writing code. If you need to write code to
+  illustrate a question, mark it clearly as a sketch.
+
+#### (c) Ordinary project-related request
+
+Triggers: "rename this", "run the tests", "update the docs", "add a
+case for X to the existing table test", concrete task IDs from
+`REMAINING.md`.
+
+What to do:
+
+- Proceed directly. Confirm the scope back in one sentence ("I am
+  about to do X in file Y, expecting Z to change"), then execute.
+- Apply §4 (House style) and §6 (REMAINING.md workflow) as usual.
+- If, mid-task, the request turns out to be category (b) in disguise
+  (the scope opens up, a contradiction surfaces), pause and switch to
+  §2.2.
+
+### 2.4 Quick sanity check
+
+Before sending a reply, run this checklist in your head:
+
+- Did I classify the input as (a), (b) or (c)?
+- If (b) or "ask", did I keep it to ≤ 3 options or ≤ 3 questions?
+- Is every option / question one sentence?
+- Did I quote the relevant evidence (a) or constraint (b) verbatim?
+- Did I say what I would do by default if the human just replies
+  "you decide"?
+
+If any answer is no, fix it before sending.
+
+## 3. Boot sequence (first thing every agent reads after §2)
 
 1. **This file**, top to bottom.
 2. [`README.md`](README.md) — what the project is from a user's POV.
@@ -57,9 +188,9 @@ If a Sub-Agent is dispatched, that Sub-Agent is bound by **the same
 order**. Pass these paths in its brief verbatim — never let it skip step
 3 or 4.
 
-## 3. House style
+## 4. House style
 
-### 3.1 Module & layout
+### 4.1 Module & layout
 
 - Module path: `github.com/cloudogu/gitops-playground/go` (declared in
   `go.mod`, do NOT rename).
@@ -70,7 +201,7 @@ order**. Pass these paths in its brief verbatim — never let it skip step
 - Public packages (under `pkg/`) are reserved. Do not create them
   without explicit human sign-off.
 
-### 3.2 Naming
+### 4.2 Naming
 
 - Files: lowercase, snake-free. Use `helm_strategy.go`, not
   `HelmStrategy.go` and not `helmstrategy.go`.
@@ -80,7 +211,7 @@ order**. Pass these paths in its brief verbatim — never let it skip step
 - A struct never carries `Manager`, `Helper` or `Utility` in the name.
   If it does, the abstraction is wrong.
 
-### 3.3 Error handling
+### 4.3 Error handling
 
 - `return fmt.Errorf("doing X for Y/%s: %w", id, err)`. Always wrap with
   `%w` so callers can `errors.Is` / `errors.As`.
@@ -89,7 +220,7 @@ order**. Pass these paths in its brief verbatim — never let it skip step
   level* (`var ErrNothingToCommit = errors.New("…")`); inline strings
   should be `fmt.Errorf`.
 
-### 3.4 Logging
+### 4.4 Logging
 
 - Use `log/slog` via the global default logger (`slog.Info`,
   `slog.Debug`, …). Levels live in `internal/log` (Info, Debug, Trace).
@@ -99,21 +230,21 @@ order**. Pass these paths in its brief verbatim — never let it skip step
 - `slog.Debug` for actionable engineering detail; `Trace` for raw
   command/HTTP echo. Production output runs at Info.
 
-### 3.5 Context
+### 4.5 Context
 
 - Every method that can block on I/O takes `ctx context.Context` as the
   first argument. **No method stores a context as a field.**
 - Pass `cmd.Context()` from Cobra into the runner, the runner into
   features, features into adapters.
 
-### 3.6 Concurrency
+### 4.6 Concurrency
 
 - Default to single goroutine; introduce concurrency only when it
   changes wall-clock latency materially.
 - When you do, never call user-supplied callbacks from multiple
   goroutines without documenting it.
 
-### 3.7 Tests
+### 4.7 Tests
 
 - Table-driven, with `t.Run(tc.name, …)` so failures point at one row.
 - One test file per source file: `foo.go` ↔ `foo_test.go`.
@@ -127,7 +258,7 @@ order**. Pass these paths in its brief verbatim — never let it skip step
   `e2e`.
 - Race detector: `make test` already runs `go test -race -count=1`.
 
-### 3.8 Forbidden patterns
+### 4.8 Forbidden patterns
 
 - **No reflection** to call optional methods. Use small interfaces and
   type assertions instead (see `internal/feature.PreConfigInit`).
@@ -145,14 +276,14 @@ order**. Pass these paths in its brief verbatim — never let it skip step
   The Groovy original disabled hostname verification unconditionally;
   that bug was fixed and stays fixed.
 
-### 3.9 Cross-package dependencies
+### 4.9 Cross-package dependencies
 
 - A package's interface lives in the **consumer**, not the producer.
   Example: `internal/feature/image_pull.go` defines
   `ImagePullSecretCreator` — `internal/k8s` does not.
 - This keeps `internal/k8s` mockable without importing `internal/feature`.
 
-## 4. Documentation duties
+## 5. Documentation duties
 
 Every change you make must keep the doc set consistent. The doc set is:
 
@@ -164,10 +295,10 @@ Every change you make must keep the doc set consistent. The doc set is:
 | `SPECS.md` | Per-adapter contracts | The public API of any `internal/<adapter>` changed |
 | `BUILD.md` | First-build notes | Build / test / image instructions changed |
 | `TEST_PLAN.md` | Iteration log of every real toolchain run | **Append a new entry after every iteration that ran the build/test pipeline** |
-| `REMAINING.md` | Live to-do list | **After every successful change** (see §5) |
+| `REMAINING.md` | Live to-do list | **After every successful change** (see §6) |
 | `retired/**` | Archived Groovy | Never |
 
-### 4.1 In-source docs
+### 5.1 In-source docs
 
 - Every package starts with a multi-line `// Package x` block that
   states what it does and what it deliberately does **not** do (the
@@ -179,19 +310,19 @@ Every change you make must keep the doc set consistent. The doc set is:
   line numbers — they rot): `// fixes silent finalizer drop in
   ArgoCDDestructionHandler.groovy`.
 
-### 4.2 Architectural Decision Records
+### 5.2 Architectural Decision Records
 
 When you make a non-trivial design decision that is not obvious from
 reading the code, capture it as a short ADR-style block in `SPECS.md`
 under the affected adapter or in the package's doc.go. ADRs **belong in
 the repo, not in the commit message**, because commits get squashed.
 
-## 5. REMAINING.md — the to-do board
+## 6. REMAINING.md — the to-do board
 
 `REMAINING.md` is the live agreement between you, the next agent and
 the human. It is **not** a commit log.
 
-### 5.1 When you start a task
+### 6.1 When you start a task
 
 1. Find or add the task in `REMAINING.md`. Append your agent name +
    timestamp in parentheses, e.g.
@@ -201,7 +332,7 @@ the human. It is **not** a commit log.
 3. Branch off `main` (or the current feature branch the human points
    you to). Never commit to `main` directly.
 
-### 5.2 When you finish a task
+### 6.2 When you finish a task
 
 1. Mark it as resolved in `REMAINING.md`:
    - For small items, **strike through** the entry and add a
@@ -214,13 +345,13 @@ the human. It is **not** a commit log.
 3. Re-read the priority ordering at the bottom of `REMAINING.md`. If
    your change unblocked something, move it up.
 
-### 5.3 When you abandon a task
+### 6.3 When you abandon a task
 
 Update the entry with the blocker (`*blocked: needs human decision on
 SCM-Manager URL shape*`) and stop. Do not push half-finished code with
 "TODO: continue later" comments.
 
-## 6. Commit / branch / PR workflow
+## 7. Commit / branch / PR workflow
 
 1. **Branches**: `feature/<topic>` or `fix/<topic>`. Long-running
    tracks may use `track/<name>` (e.g. `track/content-loader`).
@@ -238,7 +369,7 @@ SCM-Manager URL shape*`) and stop. Do not push half-finished code with
 6. PRs target `main` and reference REMAINING.md task IDs in the
    description.
 
-## 7. Verifying your work
+## 8. Verifying your work
 
 In rough order of cost:
 
@@ -255,7 +386,7 @@ If you do not have a Go toolchain (frequent for sandboxed agents):
 **say so loudly in your final report** and list every assumption you
 made about types / signatures. Do not claim a clean build.
 
-## 8. When to dispatch a Sub-Agent
+## 9. When to dispatch a Sub-Agent
 
 Sub-Agents are leverage, not a default. Use one when **all** of:
 
@@ -281,7 +412,7 @@ When the Sub-Agent reports back:
   Sub-Agent claimed success. **Trust but verify**.
 - Update `REMAINING.md` as if you had done the work yourself.
 
-## 9. Common pitfalls (learned the hard way)
+## 10. Common pitfalls (learned the hard way)
 
 1. **`scmmanager.Config` does not carry credentials.** They flow
    through the `httpx.BasicAuth` transport. Reflexively adding
@@ -303,7 +434,7 @@ When the Sub-Agent reports back:
    merge them.** This is by design and matches the Groovy
    `deepMerge` semantics; do not "fix" it.
 
-## 10. Bug-fix hygiene (carried over from the rewrite)
+## 11. Bug-fix hygiene (carried over from the rewrite)
 
 The Go port deliberately fixed twelve documented bugs from the Groovy
 original. They are listed in `PORTING_PLAN.md` §5. **Do not regress
@@ -321,7 +452,7 @@ them.** In particular:
 
 If a change makes one of these look optional, it is wrong.
 
-## 11. What good looks like
+## 12. What good looks like
 
 A model-citizen PR for this repo:
 
