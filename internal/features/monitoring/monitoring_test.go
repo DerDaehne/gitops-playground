@@ -420,8 +420,8 @@ func TestGrafanaHost(t *testing.T) {
 
 func TestParseImage(t *testing.T) {
 	cases := []struct {
-		in                       string
-		registry, repo, tag      string
+		in                  string
+		registry, repo, tag string
 	}{
 		{"foo:tag", "", "foo", "tag"},
 		{"foo/bar:tag", "", "foo/bar", "tag"},

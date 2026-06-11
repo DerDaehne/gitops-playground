@@ -15,8 +15,8 @@ type stub struct {
 	calls *[]string
 }
 
-func (s stub) Name() string  { return s.name }
-func (s stub) Order() int    { return s.order }
+func (s stub) Name() string { return s.name }
+func (s stub) Order() int   { return s.order }
 func (s stub) Destroy(_ context.Context, _ *config.Config) error {
 	*s.calls = append(*s.calls, s.name)
 	return s.err

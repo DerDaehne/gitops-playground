@@ -23,8 +23,8 @@ const (
 
 // Feature implements feature.Feature for the Traefik ingress controller.
 type Feature struct {
-	Deploy      deployment.Strategy
-	Images      feature.ImagePullSecretCreator
+	Deploy deployment.Strategy
+	Images feature.ImagePullSecretCreator
 }
 
 // Name implements feature.Feature.

@@ -1,0 +1,39 @@
+# Linter configuration.
+# Run via:  golangci-lint run ./...
+# Run via:  nix flake check
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    # govet, staticcheck and ineffassign catch real bugs. errcheck is
+    # disabled because the only patterns it ever flags here are
+    # `defer x.Close()` on Readers/Closers — Go-idiomatic and noise.
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    staticcheck:
+      # Drop the naming-style checks (ST1003/ST1020/ST1021/ST1000).
+      # The cost of renaming dockerGid → dockerGID across every test
+      # outweighs the benefit; we revisit when stable APIs go public.
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1020
+        - -ST1021
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

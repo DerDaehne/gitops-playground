@@ -1,6 +1,7 @@
 package externalsecrets
 
 import (
+	"context"
 	"testing"
 
 	"github.com/cloudogu/gitops-playground/go/internal/config"
@@ -35,7 +36,7 @@ func TestNameAndDisable(t *testing.T) {
 	if (Feature{}).Name() != "external-secrets" {
 		t.Errorf("Name wrong")
 	}
-	if err := (Feature{}).Disable(nil, config.New()); err != nil {
+	if err := (Feature{}).Disable(context.Background(), config.New()); err != nil {
 		t.Errorf("Disable returned %v", err)
 	}
 }

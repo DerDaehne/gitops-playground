@@ -220,9 +220,9 @@ func TestCreateOrUpdateJobUpdatesExisting(t *testing.T) {
 
 func TestStaleCrumbIsRefetched(t *testing.T) {
 	var (
-		mu     sync.Mutex
-		crumb  = "first"
-		stale  = true
+		mu      sync.Mutex
+		crumb   = "first"
+		stale   = true
 		creates int
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

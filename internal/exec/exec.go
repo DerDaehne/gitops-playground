@@ -3,11 +3,11 @@
 //
 // Differences vs. the Groovy original:
 //
-//  - Timeouts are driven by context, not a global PROCESS_TIMEOUT_MINUTES.
-//  - The two-command pipe variant uses io.Pipe + explicit synchronisation
-//    on each cmd.Wait, so the race the Groovy author flagged with
-//    "concurrency 🤷" cannot happen.
-//  - Trace output goes through slog.
+//   - Timeouts are driven by context, not a global PROCESS_TIMEOUT_MINUTES.
+//   - The two-command pipe variant uses io.Pipe + explicit synchronisation
+//     on each cmd.Wait, so the race the Groovy author flagged with
+//     "concurrency 🤷" cannot happen.
+//   - Trace output goes through slog.
 package exec
 
 import (

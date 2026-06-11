@@ -257,6 +257,8 @@ func objectMeta(namespace, name string) metav1.ObjectMeta {
 
 // gvrFor is a small helper used by apply.go and the tests to assemble a
 // GroupVersionResource from string parts.
+//
+//nolint:unused // Picked up by the typed Apply helpers planned in REMAINING T-1.
 func gvrFor(group, version, resource string) schema.GroupVersionResource {
 	return schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
 }

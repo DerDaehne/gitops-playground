@@ -115,7 +115,7 @@ func configsValues(cfg *config.Config) map[string]any {
 			"server.insecure":        true,
 		},
 		"cm": map[string]any{
-			"timeout.reconciliation":   "15s",
+			"timeout.reconciliation":    "15s",
 			"repository.check.interval": "30s",
 		},
 	}
@@ -172,6 +172,8 @@ func notificationsValues(cfg *config.Config) map[string]any {
 // It is intentionally NOT plugged into buildValues – operator mode
 // never installs the umbrella chart. Kept here so the operator spec and
 // the helm spec sit side-by-side and stay easy to compare.
+//
+//nolint:unused // Consumed by the operator install path (REMAINING P1).
 func operatorValues(cfg *config.Config) map[string]any {
 	envBlock := func() []any {
 		if len(cfg.Features.ArgoCD.Env) == 0 {
@@ -294,12 +296,12 @@ func argocdHost(rawURL string) string {
 // strings and passed through to helm as-is.
 func notificationTemplates() map[string]any {
 	return map[string]any{
-		"template.app-deployed": "email:\n  subject: New version of an application {{.app.metadata.name}} is up and running.\nmessage: |\n  Application {{.app.metadata.name}} is now running new version of deployments manifests.\n",
-		"template.app-health-degraded": "email:\n  subject: Application {{.app.metadata.name}} has degraded.\nmessage: |\n  Application {{.app.metadata.name}} has degraded.\n  Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.\n",
-		"template.app-sync-failed":     "email:\n  subject: Failed to sync application {{.app.metadata.name}}.\nmessage: |\n  The sync operation of application {{.app.metadata.name}} has failed at {{.app.status.operationState.finishedAt}} with the following error: {{.app.status.operationState.message}}\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
-		"template.app-sync-running":    "email:\n  subject: Start syncing application {{.app.metadata.name}}.\nmessage: |\n  The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
-		"template.app-sync-status-unknown": "email:\n  subject: Application {{.app.metadata.name}} sync status is 'Unknown'\nmessage: |\n  Application {{.app.metadata.name}} sync is 'Unknown'.\n  Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.\n  {{range $c := .app.status.conditions}}\n      * {{$c.message}}\n  {{end}}\n",
-		"template.app-sync-succeeded":      "email:\n  subject: Application {{.app.metadata.name}} has been successfully synced.\nmessage: |\n  Application {{.app.metadata.name}} has been successfully synced at {{.app.status.operationState.finishedAt}}.\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
+		"template.app-deployed":               "email:\n  subject: New version of an application {{.app.metadata.name}} is up and running.\nmessage: |\n  Application {{.app.metadata.name}} is now running new version of deployments manifests.\n",
+		"template.app-health-degraded":        "email:\n  subject: Application {{.app.metadata.name}} has degraded.\nmessage: |\n  Application {{.app.metadata.name}} has degraded.\n  Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.\n",
+		"template.app-sync-failed":            "email:\n  subject: Failed to sync application {{.app.metadata.name}}.\nmessage: |\n  The sync operation of application {{.app.metadata.name}} has failed at {{.app.status.operationState.finishedAt}} with the following error: {{.app.status.operationState.message}}\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
+		"template.app-sync-running":           "email:\n  subject: Start syncing application {{.app.metadata.name}}.\nmessage: |\n  The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
+		"template.app-sync-status-unknown":    "email:\n  subject: Application {{.app.metadata.name}} sync status is 'Unknown'\nmessage: |\n  Application {{.app.metadata.name}} sync is 'Unknown'.\n  Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.\n  {{range $c := .app.status.conditions}}\n      * {{$c.message}}\n  {{end}}\n",
+		"template.app-sync-succeeded":         "email:\n  subject: Application {{.app.metadata.name}} has been successfully synced.\nmessage: |\n  Application {{.app.metadata.name}} has been successfully synced at {{.app.status.operationState.finishedAt}}.\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
 		"template.app-sync-status-longer-10s": "email:\n  subject: Application {{.app.metadata.name}} is too long in sync status.\nmessage: |\n  The Application {{.app.metadata.name}} is now longer than 10 seconds in sync status. This may be because one of its resources resides in a SyncFailed status.\n  Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .\n",
 	}
 }
@@ -309,13 +311,13 @@ func notificationTemplates() map[string]any {
 // passed through to helm unchanged.
 func notificationTriggers() map[string]any {
 	return map[string]any{
-		"defaultTriggers": "- on-deleted\n- on-health-degraded\n- on-sync-failed\n",
-		"trigger.on-deployed": "- description: Application is synced and healthy. Triggered once per commit.\n  oncePer: app.status.sync.revision\n  send:\n  - app-deployed\n  when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'\n",
-		"trigger.on-health-degraded": "- description: Application has degraded\n  send:\n  - app-health-degraded\n  when: app.status.health.status == 'Degraded'\n",
-		"trigger.on-sync-failed":   "- description: Application syncing has failed\n  send:\n  - app-sync-failed\n  when: app.status.operationState.phase in ['Error', 'Failed']\n",
-		"trigger.on-sync-running":  "- description: Application is being synced\n  send:\n  - app-sync-running\n  when: app.status.operationState.phase in ['Running']\n",
-		"trigger.on-sync-status-unknown": "- description: Application status is 'Unknown'\n  send:\n  - app-sync-status-unknown\n  when: app.status.sync.status == 'Unknown'\n",
-		"trigger.on-sync-succeeded": "- description: Application syncing has succeeded\n  send:\n  - app-sync-succeeded\n  when: app.status.operationState.phase in ['Succeeded']\n",
+		"defaultTriggers":                   "- on-deleted\n- on-health-degraded\n- on-sync-failed\n",
+		"trigger.on-deployed":               "- description: Application is synced and healthy. Triggered once per commit.\n  oncePer: app.status.sync.revision\n  send:\n  - app-deployed\n  when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'\n",
+		"trigger.on-health-degraded":        "- description: Application has degraded\n  send:\n  - app-health-degraded\n  when: app.status.health.status == 'Degraded'\n",
+		"trigger.on-sync-failed":            "- description: Application syncing has failed\n  send:\n  - app-sync-failed\n  when: app.status.operationState.phase in ['Error', 'Failed']\n",
+		"trigger.on-sync-running":           "- description: Application is being synced\n  send:\n  - app-sync-running\n  when: app.status.operationState.phase in ['Running']\n",
+		"trigger.on-sync-status-unknown":    "- description: Application status is 'Unknown'\n  send:\n  - app-sync-status-unknown\n  when: app.status.sync.status == 'Unknown'\n",
+		"trigger.on-sync-succeeded":         "- description: Application syncing has succeeded\n  send:\n  - app-sync-succeeded\n  when: app.status.operationState.phase in ['Succeeded']\n",
 		"trigger.on-sync-status-longer-10s": "- description: Application syncing is longer than 10 seconds\n  send:\n  - app-sync-status-longer-10s\n  when: app.status.operationState.phase in ['Running'] and time.Now().Sub(time.Parse(app.status.operationState.startedAt)).Seconds() >= 10\n",
 	}
 }

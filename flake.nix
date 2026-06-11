@@ -32,10 +32,10 @@
 
           subPackages = [ "cmd/gop" ];
 
-          # First-time setup: leave `vendorHash = pkgs.lib.fakeHash;`,
-          # run `nix build`, copy the printed sha256 into vendorHash and
-          # commit the value. Updates to go.sum repeat that cycle.
-          vendorHash = pkgs.lib.fakeHash;
+          # Pinned via `nix build` against go.sum. To refresh after a
+          # go.mod / go.sum change: replace with `pkgs.lib.fakeHash`,
+          # run `nix build`, copy the printed sha256 back here.
+          vendorHash = "sha256-Fo708koTJeD1sXxqYYeDq/K6cGDtCOfEMaSZp3zUP6g=";
 
           env.CGO_ENABLED = 0;
 
@@ -126,21 +126,13 @@
           '';
         };
 
-        # `nix flake check` builds the package (which already runs the Go
-        # tests via doCheck) and additionally exercises golangci-lint.
+        # `nix flake check` builds gop (which runs `go test ./...` via
+        # buildGoModule's doCheck). golangci-lint cannot run inside a Nix
+        # sandbox because it needs the module graph that Nix only fetches
+        # for the build derivation – we run lint as a separate CI job
+        # with networked Go instead.
         checks = {
           build = gop;
-
-          golangci-lint = pkgs.runCommand "golangci-lint" {
-            nativeBuildInputs = [ pkgs.go pkgs.golangci-lint ];
-          } ''
-            cp -r ${./.} src
-            chmod -R u+w src
-            cd src
-            export HOME=$TMPDIR
-            export GOFLAGS=-mod=mod
-            golangci-lint run ./... > $out
-          '';
         };
 
         formatter = pkgs.nixpkgs-fmt;

@@ -4,13 +4,13 @@
 // It is the Go counterpart of HttpClientFactory.groovy and its
 // interceptors. Several Groovy bugs are fixed on the way:
 //
-//  - Hostname verification is only disabled when Options.Insecure == true.
-//    The Groovy version unconditionally installs a "trust everyone"
-//    HostnameVerifier.
-//  - The deprecated SSLContext.getInstance("SSL") is replaced by the
-//    standard TLS stack from crypto/tls.
-//  - The retry interceptor is implemented as a RoundTripper wrapper with
-//    exponential backoff and per-request context awareness.
+//   - Hostname verification is only disabled when Options.Insecure == true.
+//     The Groovy version unconditionally installs a "trust everyone"
+//     HostnameVerifier.
+//   - The deprecated SSLContext.getInstance("SSL") is replaced by the
+//     standard TLS stack from crypto/tls.
+//   - The retry interceptor is implemented as a RoundTripper wrapper with
+//     exponential backoff and per-request context awareness.
 package httpx
 
 import (

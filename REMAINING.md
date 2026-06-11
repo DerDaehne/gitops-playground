@@ -13,10 +13,9 @@ Diese Punkte blockieren `make build` bzw. `docker build`.
    → done in phase 9 / iteration 1 (TEST_PLAN.md), `go.sum` ist
    committed.
 
-2. **`vendorHash` in `flake.nix` setzen.** Erster Lauf mit
-   `pkgs.lib.fakeHash`, dann den von Nix gemeldeten SHA in die Datei
-   übernehmen. Noch offen — `nix build` wurde in iteration 1 nicht
-   ausgeführt.
+2. ~~`vendorHash` in `flake.nix` setzen.~~ → done in iteration 2:
+   `sha256-Fo708koTJeD1sXxqYYeDq/K6cGDtCOfEMaSZp3zUP6g=`, getestet via
+   `nix build .#default` und `nix flake check`.
 
 3. ~~Compile-Fehler aus dem Sub-Agent-Output bereinigen.~~
    → done in phase 9 / iteration 1: nur zwei winzige Mismatches im
@@ -98,6 +97,11 @@ Regression-Detection auf Timings.
 14. **`flake.nix`: `dockerToolsBuildImage`-Pfad parametrieren.** Aktuell
     nur `nix build .#oci`. Eine separate `oci-debug`-Variante mit
     `busybox` im PATH wäre für Field-Debugging nützlich.
+
+**T-3 (P3.new)**: `apps.default` in `flake.nix` ergänzt aktuell kein
+`meta`-Attribut — `nix flake check` druckt eine kosmetische Warnung.
+Trivial zu beheben über
+`apps.default = flake-utils.lib.mkApp { drv = gop; meta = gop.meta; };`
 
 15. ~~README im Repo-Root um Hinweis auf Go-Port ergänzen.~~
     → done in phase 8: Top-Level README komplett neu, Groovy-README nach

@@ -232,4 +232,3 @@ func (a imagePullAdapter) CreateImagePullSecret(ctx context.Context, name, names
 	// k8s.ApplyDockerConfigSecret takes namespace before name.
 	return a.k.ApplyDockerConfigSecret(ctx, namespace, name, registryURL, user, password)
 }
-

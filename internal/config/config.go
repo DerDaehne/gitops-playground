@@ -51,13 +51,13 @@ func New() *Config {
 			},
 		},
 		Jenkins: JenkinsSchema{
-			Internal:                     true,
-			InternalBashImage:            "bash:5",
-			InternalDockerClientVersion:  "27.1.2",
-			Username:                     DefaultAdminUser,
-			MetricsUsername:              "metrics",
-			MetricsPassword:              "metrics",
-			AdditionalEnvs:               map[string]string{},
+			Internal:                    true,
+			InternalBashImage:           "bash:5",
+			InternalDockerClientVersion: "27.1.2",
+			Username:                    DefaultAdminUser,
+			MetricsUsername:             "metrics",
+			MetricsPassword:             "metrics",
+			AdditionalEnvs:              map[string]string{},
 			Helm: HelmConfigWithValues{
 				HelmConfig: HelmConfig{
 					Chart:   "jenkins",

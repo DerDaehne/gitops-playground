@@ -144,8 +144,8 @@ func (s *service) Commit(r *Repo, message string, opts CommitOptions) error {
 		When:  time.Now(),
 	}
 	hash, err := wt.Commit(message, &gogit.CommitOptions{
-		Author:    sig,
-		Committer: sig,
+		Author:            sig,
+		Committer:         sig,
 		AllowEmptyCommits: opts.AllowEmpty,
 	})
 	if err != nil {

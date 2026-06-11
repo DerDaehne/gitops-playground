@@ -154,14 +154,14 @@ func OperatorRbacTenantSubfolder() string { return OperatorRbacSubfolder() + "/t
 // git.Service), copies the configured subdirectories from the embedded
 // template tree and runs replaceTemplates.
 type RepoInitializationAction struct {
-	cfg             *config.Config
-	git             git.Service
-	provider        scm.Provider
-	repoTarget      string            // "argocd/cluster-resources"
-	copyFromDir     string            // "argocd/cluster-resources" on disk
-	subDirsToCopy   map[string]struct{}
-	cloneDir        string            // populated after initLocalRepo
-	repo            *git.Repo         // populated after initLocalRepo
+	cfg           *config.Config
+	git           git.Service
+	provider      scm.Provider
+	repoTarget    string // "argocd/cluster-resources"
+	copyFromDir   string // "argocd/cluster-resources" on disk
+	subDirsToCopy map[string]struct{}
+	cloneDir      string    // populated after initLocalRepo
+	repo          *git.Repo // populated after initLocalRepo
 }
 
 // SetSubDirsToCopy stores the prefix list. Pass relative paths like
@@ -382,7 +382,7 @@ func (r *RepoInitializationAction) buildTemplateValues() map[string]any {
 // (multi-tenant vs. single-instance); here we collapse them into
 // NewRepoSetup which inspects cfg.MultiTenant.Raw["useDedicatedInstance"].
 type ArgoCDRepoSetup struct {
-	cfg             *config.Config
+	cfg              *config.Config
 	clusterResources *RepoInitializationAction
 	tenantBootstrap  *RepoInitializationAction // nil in single-instance mode
 	all              []*RepoInitializationAction
@@ -616,6 +616,8 @@ func scmManagerURL(cfg *config.Config) string {
 // "" when not in dedicated mode. The Groovy buildTemplateValues asks
 // gitHandler.central?.repoPrefix(); we don't have a GitHandler in Go
 // yet, so we surface the raw URL from the multiTenant config.
+//
+//nolint:unused // Consumed once GitHandler.central is wired (REMAINING P1).
 func centralSCMURL(cfg *config.Config) string {
 	if !isDedicated(cfg) {
 		return ""

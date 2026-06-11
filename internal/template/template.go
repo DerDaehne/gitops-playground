@@ -3,11 +3,11 @@
 // The Groovy original uses Freemarker via TemplatingEngine.groovy. We
 // switch to Go's text/template – with two consequences:
 //
-//  - Existing .ftl templates will be ported to .tmpl in Phase 4 alongside
-//    their feature implementations. Until that happens this package is
-//    feature-complete but only operates on the new format.
-//  - Templates that produce empty output are NOT written out (matches
-//    Groovy's replaceTemplate behaviour, which silently drops the file).
+//   - Existing .ftl templates will be ported to .tmpl in Phase 4 alongside
+//     their feature implementations. Until that happens this package is
+//     feature-complete but only operates on the new format.
+//   - Templates that produce empty output are NOT written out (matches
+//     Groovy's replaceTemplate behaviour, which silently drops the file).
 package template
 
 import (

@@ -72,35 +72,35 @@ type ScmSchema struct {
 
 // ApplicationSchema matches Config.ApplicationSchema.
 type ApplicationSchema struct {
-	RunningInsideK8s        bool             `yaml:"runningInsideK8s"`
-	NamePrefixForEnvVars    string           `yaml:"namePrefixForEnvVars"`
+	RunningInsideK8s         bool            `yaml:"runningInsideK8s"`
+	NamePrefixForEnvVars     string          `yaml:"namePrefixForEnvVars"`
 	InternalKubernetesAPIURL string          `yaml:"internalKubernetesApiUrl"`
-	LocalHelmChartFolder    string           `yaml:"localHelmChartFolder,omitempty"`
-	Namespaces              NamespaceSchema  `yaml:"namespaces"`
-	ConfigFiles             []string         `yaml:"configFiles,omitempty"`
-	ConfigMaps              []string         `yaml:"configMaps,omitempty"`
-	Debug                   bool             `yaml:"debug,omitempty"`
-	Trace                   bool             `yaml:"trace,omitempty"`
-	OutputConfigFile        bool             `yaml:"-"`
-	Insecure                bool             `yaml:"insecure"`
-	Openshift               bool             `yaml:"openshift"`
-	Username                string           `yaml:"username"`
-	Password                string           `yaml:"password"`
-	Yes                     bool             `yaml:"yes,omitempty"`
-	NamePrefix              string           `yaml:"namePrefix"`
-	Destroy                 bool             `yaml:"destroy,omitempty"`
-	PodResources            bool             `yaml:"podResources"`
-	GitName                 string           `yaml:"gitName"`
-	GitEmail                string           `yaml:"gitEmail"`
-	BaseURL                 string           `yaml:"baseUrl"`
-	URLSeparatorHyphen      bool             `yaml:"urlSeparatorHyphen"`
-	MirrorRepos             bool             `yaml:"mirrorRepos"`
-	SkipCRDs                bool             `yaml:"skipCrds"`
-	NamespaceIsolation      bool             `yaml:"namespaceIsolation"`
-	NetPols                 bool             `yaml:"netpols"`
-	ClusterAdmin            bool             `yaml:"clusterAdmin"`
-	Profile                 string           `yaml:"profile,omitempty"`
-	GopNamespace            string           `yaml:"gopNamespace"`
+	LocalHelmChartFolder     string          `yaml:"localHelmChartFolder,omitempty"`
+	Namespaces               NamespaceSchema `yaml:"namespaces"`
+	ConfigFiles              []string        `yaml:"configFiles,omitempty"`
+	ConfigMaps               []string        `yaml:"configMaps,omitempty"`
+	Debug                    bool            `yaml:"debug,omitempty"`
+	Trace                    bool            `yaml:"trace,omitempty"`
+	OutputConfigFile         bool            `yaml:"-"`
+	Insecure                 bool            `yaml:"insecure"`
+	Openshift                bool            `yaml:"openshift"`
+	Username                 string          `yaml:"username"`
+	Password                 string          `yaml:"password"`
+	Yes                      bool            `yaml:"yes,omitempty"`
+	NamePrefix               string          `yaml:"namePrefix"`
+	Destroy                  bool            `yaml:"destroy,omitempty"`
+	PodResources             bool            `yaml:"podResources"`
+	GitName                  string          `yaml:"gitName"`
+	GitEmail                 string          `yaml:"gitEmail"`
+	BaseURL                  string          `yaml:"baseUrl"`
+	URLSeparatorHyphen       bool            `yaml:"urlSeparatorHyphen"`
+	MirrorRepos              bool            `yaml:"mirrorRepos"`
+	SkipCRDs                 bool            `yaml:"skipCrds"`
+	NamespaceIsolation       bool            `yaml:"namespaceIsolation"`
+	NetPols                  bool            `yaml:"netpols"`
+	ClusterAdmin             bool            `yaml:"clusterAdmin"`
+	Profile                  string          `yaml:"profile,omitempty"`
+	GopNamespace             string          `yaml:"gopNamespace"`
 }
 
 // TenantName returns the namePrefix without trailing hyphen.
@@ -251,26 +251,26 @@ type CertManagerHelmSchema struct {
 // ContentSchema matches Config.ContentSchema (HelmRelease/ContentRepo
 // subtypes follow in Phase 2 when the ContentLoader is ported).
 type ContentSchema struct {
-	Namespaces              []string                 `yaml:"namespaces,omitempty"`
+	Namespaces              []string                  `yaml:"namespaces,omitempty"`
 	Repos                   []ContentRepositorySchema `yaml:"repos,omitempty"`
-	Variables               map[string]any           `yaml:"variables,omitempty"`
-	HelmReleases            []HelmReleaseSchema      `yaml:"helmReleases,omitempty"`
-	UseWhitelist            bool                     `yaml:"useWhitelist"`
-	AllowedStaticsWhitelist []string                 `yaml:"allowedStaticsWhitelist,omitempty"`
+	Variables               map[string]any            `yaml:"variables,omitempty"`
+	HelmReleases            []HelmReleaseSchema       `yaml:"helmReleases,omitempty"`
+	UseWhitelist            bool                      `yaml:"useWhitelist"`
+	AllowedStaticsWhitelist []string                  `yaml:"allowedStaticsWhitelist,omitempty"`
 }
 
 // ContentRepositorySchema matches ContentSchema.ContentRepositorySchema.
 type ContentRepositorySchema struct {
-	URL              string         `yaml:"url"`
-	Path             string         `yaml:"path,omitempty"`
-	Ref              string         `yaml:"ref,omitempty"`
-	TargetRef        string         `yaml:"targetRef,omitempty"`
-	Credentials      *Credentials   `yaml:"credentials,omitempty"`
-	Templating       bool           `yaml:"templating,omitempty"`
-	Type             string         `yaml:"type,omitempty"`
-	Target           string         `yaml:"target,omitempty"`
-	OverwriteMode    string         `yaml:"overwriteMode,omitempty"`
-	CreateJenkinsJob bool           `yaml:"createJenkinsJob,omitempty"`
+	URL              string       `yaml:"url"`
+	Path             string       `yaml:"path,omitempty"`
+	Ref              string       `yaml:"ref,omitempty"`
+	TargetRef        string       `yaml:"targetRef,omitempty"`
+	Credentials      *Credentials `yaml:"credentials,omitempty"`
+	Templating       bool         `yaml:"templating,omitempty"`
+	Type             string       `yaml:"type,omitempty"`
+	Target           string       `yaml:"target,omitempty"`
+	OverwriteMode    string       `yaml:"overwriteMode,omitempty"`
+	CreateJenkinsJob bool         `yaml:"createJenkinsJob,omitempty"`
 }
 
 // HelmReleaseSchema matches ContentSchema.HelmReleaseSchema.
