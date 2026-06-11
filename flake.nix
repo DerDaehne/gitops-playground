@@ -3,7 +3,7 @@
 
   inputs = {
     # nixos-unstable currently ships Go 1.25+, which easily satisfies the
-    # `go 1.22` directive in go_src/go.mod.
+    # `go 1.22` directive in go.mod.
     nixpkgs.url     = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
@@ -23,13 +23,12 @@
           pkgs.git
         ];
 
-        # The Go module lives in ./go_src. Keeping it there means the
-        # Groovy original under ./src/main/groovy stays an independent
-        # build target.
+        # The Go module sits at the repo root after the Groovy original
+        # was retired into ./retired (Phase 8 of the port).
         gop = pkgs.buildGoModule {
           pname   = "gop";
           version = "0.1.0-dev";
-          src     = ./go_src;
+          src     = ./.;
 
           subPackages = [ "cmd/gop" ];
 
@@ -124,8 +123,6 @@
             echo "  helm    : $(helm version --short 2>/dev/null || echo n/a)"
             echo "  kubectl : $(kubectl version --client=true 2>/dev/null | head -n1 || echo n/a)"
             export GOFLAGS="-mod=mod"
-            # All Go commands operate from go_src/ – chdir for convenience.
-            if [ -d "$PWD/go_src" ]; then cd "$PWD/go_src" || true; fi
           '';
         };
 
@@ -137,7 +134,7 @@
           golangci-lint = pkgs.runCommand "golangci-lint" {
             nativeBuildInputs = [ pkgs.go pkgs.golangci-lint ];
           } ''
-            cp -r ${./go_src} src
+            cp -r ${./.} src
             chmod -R u+w src
             cd src
             export HOME=$TMPDIR

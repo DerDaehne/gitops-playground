@@ -9,23 +9,26 @@ geordnet.
 
 Diese Punkte blockieren `make build` bzw. `docker build`.
 
-1. **`go mod tidy` lokal ausführen** und das resultierende `go.sum`
-   committen. Ohne `go.sum` schlägt sowohl der Nix-Build (`vendorHash`
-   wird auf die echten Hashes umgestellt) als auch der Docker-Build (Go
-   layer cache + `mod=readonly`) fehl.
+1. ~~`go mod tidy` lokal ausführen und `go.sum` committen.~~
+   → done in phase 9 / iteration 1 (TEST_PLAN.md), `go.sum` ist
+   committed.
 
 2. **`vendorHash` in `flake.nix` setzen.** Erster Lauf mit
    `pkgs.lib.fakeHash`, dann den von Nix gemeldeten SHA in die Datei
-   übernehmen.
+   übernehmen. Noch offen — `nix build` wurde in iteration 1 nicht
+   ausgeführt.
 
-3. **Compile-Fehler aus dem Sub-Agent-Output bereinigen.** Erwartete
-   Klassen (siehe `BUILD.md`):
-   - Methoden-Mismatch in `internal/wire/wire.go`. Bereits korrigiert
-     für `EnsureNamespace`, `ApplyDockerConfigSecret`, `PatchJSONMerge`
-     und `scmmanager.Config`. Weitere Fehler werden beim ersten Build
-     sichtbar.
-   - Test-Imports in einzelnen Sub-Agent-Test-Files können nicht
-     verwendete Pakete listen — `go vet` weist das aus.
+3. ~~Compile-Fehler aus dem Sub-Agent-Output bereinigen.~~
+   → done in phase 9 / iteration 1: nur zwei winzige Mismatches im
+   Jenkins-Test (siehe TEST_PLAN.md F-1 / F-2). Build, vet, race-test
+   und `bin/gop --help` laufen alle clean.
+
+**T-2 (P0.new)**: SHA256-Werte für `helm v4.1.4` und `kubectl v1.35.4`
+im `Dockerfile` gegen die jeweiligen Upstream-Release-Seiten
+abgleichen, bevor der erste `docker buildx build` gepusht wird.
+`kubectl_amd64` stammt aus dem alten Maven-Dockerfile (vertrauenswürdig),
+`helm_*` und `kubectl_arm64` aus Sub-Agent-Recherche — manuell
+nachprüfen.
 
 ## P1 — Funktionale Lücken
 
@@ -67,6 +70,12 @@ Diese Punkte blockieren `make build` bzw. `docker build`.
 
 ## P2 — Tests + Beobachtbarkeit
 
+**T-1 (P2.new)**: Benchmarks für `internal/k8s` (`go test -bench=.`).
+Der Adapter ist mit 1,5 s schon der teuerste in der Suite und enthält
+die tiefsten Poll-/Wait-Schleifen — der natürliche Ort für
+Regression-Detection auf Timings.
+
+
 10. **End-to-End-Test gegen einen Fake-Cluster.** `internal/k8s`
     enthält bereits Sub-Agent-Tests gegen `client-go`-Fakes. Ein
     `internal/runner/runner_e2e_test.go`, das eine kleine Feature-Liste
@@ -90,8 +99,9 @@ Diese Punkte blockieren `make build` bzw. `docker build`.
     nur `nix build .#oci`. Eine separate `oci-debug`-Variante mit
     `busybox` im PATH wäre für Field-Debugging nützlich.
 
-15. **README im Repo-Root um Hinweis auf Go-Port ergänzen.** Ein kurzer
-    Block "Go port lives in `go_src/`" und ein Link zu BUILD.md.
+15. ~~README im Repo-Root um Hinweis auf Go-Port ergänzen.~~
+    → done in phase 8: Top-Level README komplett neu, Groovy-README nach
+    `retired/README.md` verschoben.
 
 16. **Profile-Equivalenz-Tests.** Für jedes der drei Hauptprofile
     (`minimal`, `content-examples`, `full`) einen Test, der
@@ -101,10 +111,10 @@ Diese Punkte blockieren `make build` bzw. `docker build`.
 
 ## P4 — Aufräumen
 
-17. **Groovy-Quelle abkapseln.** Sobald der Go-Port die Funktionalität
-    voll abdeckt, in einem Folge-Commit `src/main/groovy` als `legacy/`
-    umbenennen und im `Dockerfile`/`pom.xml` als optionalen Pfad
-    markieren.
+17. ~~Groovy-Quelle abkapseln.~~ → done in phase 8: alle Groovy-, Maven-
+    und Skript-Pfade liegen jetzt unter `retired/`. Das alte
+    `Dockerfile`/`pom.xml` ist dort, der Maven-Build über
+    `cd retired && ./mvnw package` weiterhin möglich.
 
 18. **Versionsband-Konsistenz.** `Config.HelmImage`, `K8sVersion` und
     die Konstanten in `Dockerfile`/`flake.nix` driften jetzt

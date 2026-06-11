@@ -80,6 +80,7 @@ func TestValidate(t *testing.T) {
 			name: "external missing username",
 			mutate: func(c *config.Config) {
 				c.Jenkins.URL = "https://jenkins.example.org"
+				c.Jenkins.Username = ""
 				c.Jenkins.Password = "p"
 			},
 			wantErr:    true,
@@ -90,6 +91,7 @@ func TestValidate(t *testing.T) {
 			mutate: func(c *config.Config) {
 				c.Jenkins.URL = "https://jenkins.example.org"
 				c.Jenkins.Username = "u"
+				c.Jenkins.Password = ""
 			},
 			wantErr:    true,
 			wantSubstr: []string{"jenkins.password"},
@@ -256,9 +258,7 @@ func TestBuildValuesServiceMonitor(t *testing.T) {
 }
 
 func TestAgentValuesDockerGid(t *testing.T) {
-	cfg := config.New()
-
-	withGid := agentValues(cfg, "999")
+	withGid := agentValues("999")
 	if withGid["runAsUser"] != "1000" {
 		t.Errorf("runAsUser with GID=%v, want 1000", withGid["runAsUser"])
 	}
@@ -266,7 +266,7 @@ func TestAgentValuesDockerGid(t *testing.T) {
 		t.Errorf("runAsGroup with GID=%v, want 999", withGid["runAsGroup"])
 	}
 
-	noGid := agentValues(cfg, "")
+	noGid := agentValues("")
 	if noGid["runAsUser"] != "0" {
 		t.Errorf("runAsUser without GID=%v, want 0", noGid["runAsUser"])
 	}

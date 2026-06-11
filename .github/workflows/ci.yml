@@ -1,26 +1,15 @@
-name: go-port-ci
+name: ci
 
 on:
   push:
     branches:
       - main
-      - 'feature/go_port'
-    paths:
-      - 'go_src/**'
-      - 'flake.nix'
-      - 'flake.lock'
+      - 'feature/**'
   pull_request:
-    paths:
-      - 'go_src/**'
-      - 'flake.nix'
-      - 'flake.lock'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: go_src
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +17,7 @@ jobs:
         with:
           go-version: '1.22'
           cache: true
-          cache-dependency-path: go_src/go.sum
+          cache-dependency-path: go.sum
 
       - name: tidy check
         run: |
@@ -67,14 +56,14 @@ jobs:
       - name: build (and push on main)
         uses: docker/build-push-action@v6
         with:
-          context: go_src
-          file: go_src/Dockerfile
+          context: .
+          file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.ref == 'refs/heads/main' }}
           provenance: false
           tags: |
-            ghcr.io/${{ github.repository }}-go:latest
-            ghcr.io/${{ github.repository }}-go:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
           build-args: |
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}

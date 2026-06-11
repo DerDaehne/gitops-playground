@@ -1,8 +1,7 @@
-# Building the Go port
+# Building gop
 
-This directory holds the Go translation of the Groovy gitops-playground
-CLI. The original Groovy implementation under `../src/main/groovy` stays
-intact – this is a parallel codebase.
+This is the Go rewrite of the gitops-playground CLI. The Groovy
+original lives under [`retired/`](retired/) for reference only.
 
 ## Prerequisites
 
@@ -10,6 +9,7 @@ intact – this is a parallel codebase.
 - `helm` and `kubectl` on `PATH` (used as subprocesses).
 - Network access on first build for module downloads (or a fully
   populated `GOMODCACHE`).
+- Alternatively, `nix develop` brings the whole toolchain in one shot.
 
 ## First build
 
@@ -18,7 +18,6 @@ toolchain themselves – they ship the direct module versions but not the
 indirect transitive `go.sum` lines. Pull them on the first build:
 
 ```sh
-cd go_src
 go mod tidy
 go vet ./...
 go build -o bin/gop ./cmd/gop
@@ -60,9 +59,9 @@ There are no known logical issues; the failures are mechanical.
 
 ## Where the Groovy original lives
 
-Source-of-truth for behaviour: `../src/main/groovy/com/cloudogu/gitops/`.
+Source-of-truth for behaviour reference: `retired/src/main/groovy/com/cloudogu/gitops/`.
 Every Go package documents the Groovy file(s) it ports. To rebuild the
-original side use the parent Maven build (`mvn package`).
+original side, `cd retired && ./mvnw package`.
 
 ## Status of the port
 
@@ -81,4 +80,4 @@ and the destroy path are in place. Documented gaps:
   behaviour from `Application.storeGopInformationInSecret` is wired up
   but unimplemented.
 
-These are tracked as TODOs at their call sites.
+These are tracked in `REMAINING.md`.

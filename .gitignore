@@ -1,29 +1,53 @@
-.idea
-.run
+# Go build artifacts
+bin/
+dist/
+*.test
+*.out
+*.prof
+coverage.*
+
+# Go module cache (none here; pulled by `go mod download`)
+vendor/
+
+# Editor / IDE
+.idea/
+.vscode/
+.run/
 *.iml
-target
+*.swp
+*.swo
 
-# ignore evertything under scripts/local except shellscripts
-scripts/local/**
-!scripts/local/**/
-!scripts/local/**/*.sh
+# Direnv / nix
+.direnv/
+.envrc
+result
+result-*
 
-scripts/dev/gop_airgapped_config.yaml
+# OS junk
+.DS_Store
+Thumbs.db
 
-# do not check in the workspace
-workspace/
+# Local secrets / cluster config
+kubeconfig
+.kube/
+*.env
+.env.*
+!.env.example
+*.pem
+*.key
 
-# do not check in sensitive terraform files
+# Legacy Groovy/Maven build output that may still sit on developer
+# machines after the rewrite. The sources themselves live under
+# retired/ and ARE versioned.
+target/
+.classpath
+.project
+.apt_generated/
+.apt_generated_tests/
+.mvn/wrapper/maven-wrapper.jar
+
+# Terraform state (only relevant for legacy scripts under retired/)
 *.tfstate
 *.tfstate.*
-terraform/plan
-terraform/account.json
 *.lock.hcl
 **/.terraform/*
-/.mvn/wrapper/maven-wrapper.jar
-# Is created on "helm dep update ." but not needed in repo
-/argocd/cluster-resources/apps/argocd/argocd/charts/
-
-gitops-playground.jar
-jenkins-plugins
-/charts/

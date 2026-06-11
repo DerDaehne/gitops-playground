@@ -44,9 +44,12 @@ the brief.
    section is the source of truth for its public API.
 5. [`REMAINING.md`](REMAINING.md) — the live to-do list. Pick a task
    from there or, with the human's agreement, append a new one.
-6. [`BUILD.md`](BUILD.md) — how to build, test and what to expect on a
+6. [`TEST_PLAN.md`](TEST_PLAN.md) — every prior agent's toolchain
+   run lives here. Read at least the latest iteration to know what is
+   green right now.
+7. [`BUILD.md`](BUILD.md) — how to build, test and what to expect on a
    first build.
-7. Read the **package doc comment** of each package you intend to
+8. Read the **package doc comment** of each package you intend to
    change. Every package starts with `// Package x …` that explains
    why it exists and what it deliberately does *not* do.
 
@@ -160,6 +163,7 @@ Every change you make must keep the doc set consistent. The doc set is:
 | `PORTING_PLAN.md` | Architecture journal | A phase landed or a phase was added |
 | `SPECS.md` | Per-adapter contracts | The public API of any `internal/<adapter>` changed |
 | `BUILD.md` | First-build notes | Build / test / image instructions changed |
+| `TEST_PLAN.md` | Iteration log of every real toolchain run | **Append a new entry after every iteration that ran the build/test pipeline** |
 | `REMAINING.md` | Live to-do list | **After every successful change** (see §5) |
 | `retired/**` | Archived Groovy | Never |
 

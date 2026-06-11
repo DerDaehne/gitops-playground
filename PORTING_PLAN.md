@@ -1,10 +1,14 @@
 # GitOps Playground – Portierungsplan Groovy → Go
 
 Dieses Dokument beschreibt den geplanten Ansatz, um die Funktionalität des
-Groovy-basierten gitops-playground-CLI nach Go (Verzeichnis `go_src/`) zu
-portieren. Es dient als Leitfaden für die schrittweise Migration, die
-Reduktion struktureller Komplexität und die Behebung von Fehlern, die im
-bestehenden Groovy-Code gefunden werden.
+Groovy-basierten gitops-playground-CLI nach Go zu portieren. Es dient als
+Leitfaden für die schrittweise Migration, die Reduktion struktureller
+Komplexität und die Behebung von Fehlern, die im bestehenden Groovy-Code
+gefunden werden.
+
+> **Status nach Phase 8:** Der Port liegt jetzt im Repo-Root. Der
+> Groovy-Original-Code wurde nach `retired/` archiviert. Die unten
+> referenzierten `go_src/`-Pfade entsprechen dem heutigen Repo-Root.
 
 ## 1. Status Quo der Quell-Anwendung
 

@@ -29,6 +29,11 @@ PORTING_PLAN.md
 SPECS.md
 BUILD.md
 REMAINING.md
+TEST_PLAN.md
+AGENTS.md
+
+# Legacy Groovy tree is huge — keep it out of the build context.
+retired/
 
 # OS junk
 .DS_Store
