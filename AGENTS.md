@@ -368,6 +368,40 @@ SCM-Manager URL shape*`) and stop. Do not push half-finished code with
    final report; do not pretend.
 6. PRs target `main` and reference REMAINING.md task IDs in the
    description.
+7. **Co-author trailer is mandatory for AI-authored commits.**
+   Every commit you create — solo or assisting the human — ends with a
+   `Co-Authored-By` trailer that names the model. This is the audit
+   trail: a reader who sees a commit must be able to tell whether a
+   human, an agent, or both produced it.
+
+   Format:
+
+   ```
+   <commit message body>
+
+   Co-Authored-By: <Model name and version> <noreply@anthropic.com>
+   ```
+
+   Concrete examples (use the one that matches your runtime):
+
+   ```
+   Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+   Co-Authored-By: GPT-5 Codex <noreply@openai.com>
+   ```
+
+   Rules:
+   - Always use a HEREDOC for the commit message so the trailer keeps
+     its own line.
+   - If multiple agents contributed (e.g. a sub-agent wrote part of
+     the patch), add one `Co-Authored-By` line per agent, in the order
+     the work happened.
+   - Never use a real human's address for the agent trailer. Stick to
+     the no-reply addresses above; reviewers and analytics tooling
+     depend on them.
+   - This rule does NOT replace the human's authorship. `git
+     commit --author` stays at the human's identity for their machine;
+     the trailer is additive.
 
 ## 8. Verifying your work
 
