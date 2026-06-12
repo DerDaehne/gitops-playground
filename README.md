@@ -82,22 +82,31 @@ See [`PORTING_PLAN.md`](PORTING_PLAN.md) for the architecture and
 │   └── content/      ContentLoader (MIRROR done; COPY/FOLDER_BASED stubs)
 ├── retired/          legacy Groovy/Maven tree (build target: archived)
 ├── Dockerfile        multi-stage distroless image
+├── .dockerignore     excludes retired/ and the planning docs
 ├── Makefile          build / test / lint
 ├── flake.nix         devShell + buildGoModule + dockerTools image
+├── flake.lock        pinned nixpkgs + flake-utils inputs
+├── .golangci.yml     lint config (govet+staticcheck+ineffassign+unused)
+├── .github/workflows/ci.yml   test + container + nix jobs
 ├── AGENTS.md         contract for AI agents working in this repo
 ├── BUILD.md          first-time build notes
 ├── REMAINING.md      prioritised open work
+├── TEST_PLAN.md      iteration log of every toolchain run
 ├── PORTING_PLAN.md   high-level rewrite plan
 └── SPECS.md          per-adapter design specs
 ```
 
 ## Status
 
-- Phases 0 – 7 of the rewrite are in. The runner installs, the
+- Phases 0 – 11 of the rewrite are in. The runner installs, the
   destroyer tears down, the container builds, the Nix flake reproduces
   the binary, CI runs tests + image build.
+- `go vet`, `go test -race`, `golangci-lint run`, `nix flake check` and
+  `bin/gop --help/--version/--profile=… --output-config-file` are all
+  green as of `TEST_PLAN.md` iteration 2.
 - Known gaps and the order they are tackled in live in
-  [`REMAINING.md`](REMAINING.md).
+  [`REMAINING.md`](REMAINING.md); every toolchain run is logged in
+  [`TEST_PLAN.md`](TEST_PLAN.md).
 
 ## License
 

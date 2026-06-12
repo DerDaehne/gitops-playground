@@ -1,9 +1,10 @@
 # Offene Aufgaben — Go-Port
 
-Stand: nach den Phasen 0–7 auf `feature/go_port`. Diese Liste beschreibt
-das, was nach den bisherigen Commits **noch zu tun** ist, damit der Port
-produktiv läuft. Jede Aufgabe ist nach Risiko und benötigtem Aufwand
-geordnet.
+Stand: nach iteration 2 (Phase 11) auf `feature/go_port`. `make check`,
+`golangci-lint run`, `nix flake check` und das `bin/gop`-Smoketest-Set
+laufen grün — siehe `TEST_PLAN.md`. Diese Liste beschreibt das, was
+**noch zu tun** ist, damit der Port produktiv läuft. Jede Aufgabe ist
+nach Risiko und benötigtem Aufwand geordnet.
 
 ## P0 — Vor dem ersten Container-Build
 
@@ -127,7 +128,30 @@ Trivial zu beheben über
 
 ## Empfohlene Reihenfolge
 
-P0 → P1.4 (`monitoring` OpenShift) → P1.6 (`PersistConfig`) → P0.3-Pass2
-(zweiter Build-Check) → P1.4/8 (ContentLoader) → P2 (Tests).
+T-2 (Dockerfile SHA256s) → P1.5 (`monitoring` OpenShift-UID) →
+P1.6 (`PersistConfig`) → P1.4 + P1.8 (ContentLoader COPY/FOLDER_BASED
++ HelmReleases) → P2.10 (E2E gegen Fake-Cluster).
 
-P3 und P4 können parallel/auf Wunsch des Maintainers laufen.
+P3 und P4 können parallel / auf Wunsch des Maintainers laufen.
+
+## Audit-Befund (Boot-Sequenz, 2026-06-12)
+
+Ein Doku-/Code-Audit nach den Phasen 0–11 hat eine Code-Auffälligkeit
+zutage gefördert, die hier als Task ankommt:
+
+**T-4 (P2.new)**: `internal/scm/gitlab.Client.RepoURL` ruft
+`c.parentFullPath(context.Background())` ([gitlab.go:92](internal/scm/gitlab/gitlab.go))
+weil das Provider-Interface kein `ctx` für `RepoURL` hat. Der zweite
+Aufruf trifft den Cache, der erste macht jedoch einen HTTP-Round-Trip
+ohne Context — verstößt im Geiste gegen §4.5. Drei Optionen:
+
+1. `scm.Provider.RepoURL` um `ctx context.Context` als ersten
+   Parameter ergänzen (Breaking Change, ein Konsument: `internal/wire`).
+2. Den Parent-Path beim Wire-Build einmalig auflösen und über
+   `gitlab.Config.ParentPath` injizieren (kein Interface-Change, dafür
+   eager Lookup beim Start).
+3. So lassen und im Doc-Kommentar warnen (Status quo, aber Stolperfalle
+   für künftige Agents).
+
+Empfohlen: **Option 2**, weil sie das Interface stabil hält und die
+HTTP-Latenz nur einmal beim Bootstrap anfällt.

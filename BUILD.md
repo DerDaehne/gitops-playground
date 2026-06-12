@@ -42,20 +42,22 @@ make clean
 
 ## Expected first-run issues
 
-Because the toolchain could not validate the sub-agent output, expect a
-small batch of compile errors the first time you run `make build`. They
-typically fall into one of these buckets:
+As of `TEST_PLAN.md` iteration 2 the first build is **clean** on a host
+with Go 1.22+ and an unrestricted network. `nix build .#default`,
+`make check`, `golangci-lint run` and `bin/gop --help/--version` all
+produce a zero-exit-code green run.
 
-1. A method called in `internal/wire/wire.go` does not exist exactly with
-   that name on the matching adapter (the wire file was written from
-   spec, not by reading every adapter). Fix by jumping to the adapter,
-   correcting the call site, and re-running.
-2. A feature struct field referenced in `internal/wire` uses a slightly
-   different name than the sub-agent's actual implementation. Same fix.
-3. Unused imports in the test files (rare; the sub-agents kept their
-   imports tight).
+What is still worth knowing if something does go wrong:
 
-There are no known logical issues; the failures are mechanical.
+- `go mod tidy` was already run; `go.sum` is committed. If it complains,
+  somebody bumped `go.mod` without running `go mod tidy` (CI catches
+  this via `git diff --exit-code go.mod go.sum`).
+- `flake.nix`'s `vendorHash` is pinned. After a `go.mod`/`go.sum` bump,
+  set it back to `pkgs.lib.fakeHash`, run `nix build`, paste the new
+  SHA into the file.
+- `golangci-lint` runs **outside** the Nix sandbox because the sandbox
+  has no network access for module fetches; the CI workflow runs it as
+  its own step.
 
 ## Where the Groovy original lives
 
@@ -66,18 +68,17 @@ original side, `cd retired && ./mvnw package`.
 ## Status of the port
 
 See `PORTING_PLAN.md` and `SPECS.md` for the architecture; the commit
-log on `feature/go_port` walks through the phases in order. The
-Application Runner, all nine tool features, the SCM provider abstraction,
-and the destroy path are in place. Documented gaps:
+log on `feature/go_port` walks through the phases (0 – 11) in order.
+The Application Runner, all nine tool features, the SCM provider
+abstraction, and the destroy path are in place. Documented gaps live
+in `REMAINING.md`; every toolchain run is logged in `TEST_PLAN.md`.
 
-- `internal/content`: COPY and FOLDER_BASED repo types are stubs with
-  TODOs; MIRROR is complete.
-- `internal/features/monitoring`: OpenShift UID discovery is not yet
-  implemented (uses an injection seam – the runner can fill it once a
-  small `k8s` helper is added).
-- `internal/runner.PersistConfig` is left nil; the install-time
-  "store the resolved config in the gop-job namespace as a secret"
-  behaviour from `Application.storeGopInformationInSecret` is wired up
-  but unimplemented.
+Current focus areas (from `REMAINING.md`):
 
-These are tracked in `REMAINING.md`.
+- T-2 (P0): verify `helm` and `kubectl` SHA256s in the Dockerfile.
+- T-4 (P2): tighten `gitlab.Client.RepoURL` so it does not call
+  `context.Background()`.
+- P1.4 / P1.8: implement ContentLoader COPY and FOLDER_BASED modes
+  plus the HelmReleases code path.
+- P1.5: OpenShift-UID discovery for `features/monitoring`.
+- P1.6: `runner.Runner.PersistConfig`.

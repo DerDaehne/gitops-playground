@@ -467,6 +467,25 @@ When the Sub-Agent reports back:
 6. **`yaml.v3` replaces slices and maps on Unmarshal, it does not
    merge them.** This is by design and matches the Groovy
    `deepMerge` semantics; do not "fix" it.
+7. **`golangci-lint` does NOT run inside the Nix sandbox.** It tries
+   to fetch modules to type-check, and the sandbox has no network.
+   Lint is therefore a separate GitHub Actions step
+   (`golangci/golangci-lint-action@v6`), not a `checks` entry in
+   `flake.nix`. Do not move it back into the flake without solving
+   the fetch problem first.
+8. **Sub-Agent output drifts on `gofmt`.** Sub-agents that cannot run
+   the Go toolchain often produce files that differ from `gofmt -d`
+   output by whitespace alone. Always run `gofmt -w .` and `go vet`
+   on the affected packages after a sub-agent returns; commit the
+   formatting change in the same patch.
+9. **Sub-Agents sometimes invent extra parameters.** E.g.
+   `agentValues(cfg, dockerGid)` was authored against a function
+   that only takes `dockerGid`. The wire / test files are the most
+   common offenders. Spot-check the call sites a sub-agent touched.
+10. **Don't add `context.Background()` to a method that could take a
+    `ctx`.** `internal/scm/gitlab/gitlab.go:RepoURL` is a known
+    offender tracked as T-4 in `REMAINING.md`; resist the temptation
+    to follow that pattern when adding new methods.
 
 ## 11. Bug-fix hygiene (carried over from the rewrite)
 
