@@ -23,12 +23,12 @@ Diese Punkte blockieren `make build` bzw. `docker build`.
    Jenkins-Test (siehe TEST_PLAN.md F-1 / F-2). Build, vet, race-test
    und `bin/gop --help` laufen alle clean.
 
-**T-2 (P0.new)**: SHA256-Werte für `helm v4.1.4` und `kubectl v1.35.4`
-im `Dockerfile` gegen die jeweiligen Upstream-Release-Seiten
-abgleichen, bevor der erste `docker buildx build` gepusht wird.
-`kubectl_amd64` stammt aus dem alten Maven-Dockerfile (vertrauenswürdig),
-`helm_*` und `kubectl_arm64` aus Sub-Agent-Recherche — manuell
-nachprüfen.
+~~T-2 (P0.new): SHA256-Werte verifizieren.~~ → done in phase 12:
+alle vier SHA256 (helm-amd64, helm-arm64, kubectl-amd64, kubectl-arm64)
+matchen die Upstream-Werte unter
+`https://get.helm.sh/helm-v4.1.4-linux-<arch>.tar.gz.sha256sum` bzw.
+`https://dl.k8s.io/release/v1.35.4/bin/linux/<arch>/kubectl.sha256`.
+Dockerfile-Kommentar trägt das Verifikationsdatum.
 
 ## P1 — Funktionale Lücken
 
@@ -99,10 +99,9 @@ Regression-Detection auf Timings.
     nur `nix build .#oci`. Eine separate `oci-debug`-Variante mit
     `busybox` im PATH wäre für Field-Debugging nützlich.
 
-**T-3 (P3.new)**: `apps.default` in `flake.nix` ergänzt aktuell kein
-`meta`-Attribut — `nix flake check` druckt eine kosmetische Warnung.
-Trivial zu beheben über
-`apps.default = flake-utils.lib.mkApp { drv = gop; meta = gop.meta; };`
+~~T-3 (P3.new): `apps.default` ohne `meta`-Attribut.~~
+→ done in phase 12: `apps.default = flake-utils.lib.mkApp { drv = gop;
+inherit (gop) meta; }`.
 
 15. ~~README im Repo-Root um Hinweis auf Go-Port ergänzen.~~
     → done in phase 8: Top-Level README komplett neu, Groovy-README nach
@@ -126,6 +125,28 @@ Trivial zu beheben über
     unabhängig auseinander. Ein kleiner Helper-Test der die drei Werte
     abgleicht, hilft beim nächsten Bump.
 
+**T-5 (P1.new)**: `scm.*` und `multiTenant.*` typisieren. Aktuell
+liegen beide als `map[string]any` (Raw) im Go-Schema; der
+Strict-Decode-Test in `internal/config/profile_compat_test.go` fängt
+Tippfehler in diesen Bereichen NICHT, weil yaml.v3 alle Sub-Keys
+schluckt. Das Groovy-Schema definiert konkrete Felder
+(`scm.scmProviderType`, `scm.scmManager.{url,username,password,
+namespace,skipPlugins,skipRestart,gitOpsUsername,helm}`,
+`scm.gitlab.{url,username,password,parentGroupId,internal,
+gitOpsUsername}`, `multiTenant.{useDedicatedInstance,scmProviderType,
+centralArgocdNamespace,scmManager.*,gitlab.*}`). Vorgehen: typisierte
+Structs analog zu `features.argocd`, `addScmConfig` /
+`setMultiTenantModeConfig` auf die Structs umstellen, wire
+aktualisieren. Erst danach ist die Profile-/Config-Kompatibilität
+strikt geprüft.
+
+**T-6 (P3.new)**: `Credentials`-Felder wurden in phase 12 von
+`secretRef/secretKey/secretField` auf die Groovy-Form
+`secretNamespace/secretName/usernameKey/passwordKey` umgestellt — der
+ContentLoader-Code in `internal/content/*` referenziert diese Felder
+aber noch nicht. Bei der Implementierung von P1.4 (Content COPY) mit
+auf die neuen Namen achten.
+
 ## Empfohlene Reihenfolge
 
 T-2 (Dockerfile SHA256s) → P1.5 (`monitoring` OpenShift-UID) →
@@ -138,6 +159,14 @@ P3 und P4 können parallel / auf Wunsch des Maintainers laufen.
 
 Ein Doku-/Code-Audit nach den Phasen 0–11 hat eine Code-Auffälligkeit
 zutage gefördert, die hier als Task ankommt:
+
+~~T-4 (P2.new): `gitlab.Client.RepoURL` ruft `context.Background()`.~~
+→ done in phase 12 (Option 2): `gitlab.Config.ParentFullPath` ist neu;
+wenn der Wire-Caller den Pfad voraus-resolved (via
+`Client.ResolveParentFullPath(ctx)`), trifft `RepoURL` keinen
+HTTP-Endpunkt mehr. Test in `repourl_test.go`. Der Code-Pfad zum
+Fallback bleibt bestehen, ist aber explizit als "wire-time preferred"
+dokumentiert. Der originale Empfehlungsvorschlag:
 
 **T-4 (P2.new)**: `internal/scm/gitlab.Client.RepoURL` ruft
 `c.parentFullPath(context.Background())` ([gitlab.go:92](internal/scm/gitlab/gitlab.go))
@@ -155,3 +184,23 @@ ohne Context — verstößt im Geiste gegen §4.5. Drei Optionen:
 
 Empfohlen: **Option 2**, weil sie das Interface stabil hält und die
 HTTP-Latenz nur einmal beim Bootstrap anfällt.
+
+**T-5 (P1.new)**: `scm.*` und `multiTenant.*` typisieren. Aktuell
+liegen beide als `map[string]any` (Raw) im Go-Schema; der
+Strict-Decode-Test in `internal/config/profile_compat_test.go` fängt
+Tippfehler in diesen Bereichen NICHT, weil yaml.v3 alle Sub-Keys
+schluckt. Das Groovy-Schema definiert:
+
+- `scm.scmProviderType` (Enum: SCM_MANAGER, GITLAB)
+- `scm.scmManager.{url, username, password, namespace, skipPlugins,
+  skipRestart, gitOpsUsername, helm}`
+- `scm.gitlab.{url, username, password, parentGroupId, internal,
+  gitOpsUsername}`
+- `multiTenant.{useDedicatedInstance, scmProviderType,
+  centralArgocdNamespace}` plus eigene `scmManager.*` und `gitlab.*`
+  Sub-Bäume.
+
+Vorgehen: typisierte Structs in `internal/config/schema.go` analog zu
+`features.argocd` etc., plus `addScmConfig`/`setMultiTenantModeConfig`
+in `internal/config/configurator.go` auf die Structs umstellen. Wire
+in `internal/wire/wire.go` aktualisieren.

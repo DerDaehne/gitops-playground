@@ -285,11 +285,23 @@ type HelmReleaseSchema struct {
 	Values      map[string]any `yaml:"values,omitempty"`
 }
 
-// Credentials mirrors Config.Credentials (kept minimal; expand in Phase 2).
+// Credentials mirrors Config.Credentials from the Groovy original
+// (retired/src/main/groovy/com/cloudogu/gitops/config/Credentials.groovy).
+// Field names match the Groovy keys verbatim so YAML written for the
+// Groovy CLI works against the Go rewrite unchanged.
+//
+// Two ways to supply credentials:
+//   - inline: Username + Password
+//   - via a K8s Secret: SecretNamespace + SecretName plus UsernameKey
+//     and PasswordKey to point at the entries inside that Secret.
+//
+// UsernameKey/PasswordKey default to "username"/"password" when empty,
+// matching the Groovy defaults.
 type Credentials struct {
-	Username    string `yaml:"username,omitempty"`
-	Password    string `yaml:"password,omitempty"`
-	SecretRef   string `yaml:"secretRef,omitempty"`
-	SecretKey   string `yaml:"secretKey,omitempty"`
-	SecretField string `yaml:"secretField,omitempty"`
+	Username        string `yaml:"username,omitempty"`
+	Password        string `yaml:"password,omitempty"`
+	SecretNamespace string `yaml:"secretNamespace,omitempty"`
+	SecretName      string `yaml:"secretName,omitempty"`
+	UsernameKey     string `yaml:"usernameKey,omitempty"`
+	PasswordKey     string `yaml:"passwordKey,omitempty"`
 }

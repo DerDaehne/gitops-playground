@@ -17,8 +17,9 @@ ARG HELM_VERSION=4.1.4
 ARG KUBECTL_VERSION=1.35.4
 
 # SHA256s pinned per architecture. Update when bumping the versions above.
-# helm   : https://github.com/helm/helm/releases/tag/v${HELM_VERSION}
-# kubectl: https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${arch}/kubectl.sha256
+# Last verified 2026-06-12 against upstream:
+#   helm   : https://get.helm.sh/helm-v${HELM_VERSION}-linux-${arch}.tar.gz.sha256sum
+#   kubectl: https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${arch}/kubectl.sha256
 ARG HELM_SHA256_AMD64=70b2c30a19da4db264dfd68c8a3664e05093a361cefd89572ffb36f8abfa3d09
 ARG HELM_SHA256_ARM64=13d03672be289045d2ff00e4e345d61de1c6f21c1257a45955a30e8ae036d8f1
 ARG KUBECTL_SHA256_AMD64=b529430df69a688fd61b64ad2299edb5fd71cb58be2a4779dba624c7d3510efd

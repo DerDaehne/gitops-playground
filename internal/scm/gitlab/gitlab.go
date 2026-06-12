@@ -49,6 +49,12 @@ type Config struct {
 	// ParentGroup is either a numeric group ID or the full path of the
 	// group under which all repositories are created.
 	ParentGroup string
+	// ParentFullPath is the resolved full path of ParentGroup, set
+	// once at wire-time so that scm.Provider.RepoURL — which has no
+	// ctx — does not need a sync HTTP round trip. When empty, RepoURL
+	// falls back to a context.Background() resolveParent(). Tracked
+	// as REMAINING T-4: prefer setting this at wire time.
+	ParentFullPath string
 	// DefaultVisibility, one of "public", "internal", "private". Empty
 	// defaults to "private".
 	DefaultVisibility string
@@ -88,9 +94,27 @@ func (c *Client) GitOpsUsername() string { return c.cfg.GitOpsUsername }
 // RepoURL returns the project clone URL. GitLab does not distinguish
 // in-cluster vs. client URLs (it serves both off the same host), so the
 // scope is ignored – matching the Groovy behaviour in Gitlab.repoUrl.
+//
+// If cfg.ParentFullPath is preset (preferred wire-time path), no HTTP
+// call happens. Otherwise the fallback resolveParent is invoked with a
+// background context — see the doc on Config.ParentFullPath.
 func (c *Client) RepoURL(namespace, name string, _ scm.RepoURLScope) string {
-	parentPath, _ := c.parentFullPath(context.Background())
+	parentPath := c.cfg.ParentFullPath
+	if parentPath == "" {
+		parentPath, _ = c.parentFullPath(context.Background())
+	}
 	return scm.GitLabRepoURL(c.cfg.BaseURL, parentPath, strings.ToLower(namespace), strings.ToLower(name))
+}
+
+// ResolveParentFullPath is meant to be called once at wire time so that
+// later RepoURL calls (which have no ctx) hit the cache. It populates
+// the same internal cache resolveParent uses and returns the resolved
+// FullPath.
+func (c *Client) ResolveParentFullPath(ctx context.Context) (string, error) {
+	if c.cfg.ParentFullPath != "" {
+		return c.cfg.ParentFullPath, nil
+	}
+	return c.parentFullPath(ctx)
 }
 
 // --- DTOs -----------------------------------------------------------------

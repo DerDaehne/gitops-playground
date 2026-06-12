@@ -98,7 +98,10 @@
           oci     = oci;
         };
 
-        apps.default = flake-utils.lib.mkApp { drv = gop; };
+        apps.default = flake-utils.lib.mkApp {
+          drv = gop;
+          inherit (gop) meta;
+        };
 
         devShells.default = pkgs.mkShell {
           packages = [
