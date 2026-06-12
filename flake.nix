@@ -98,9 +98,11 @@
           oci     = oci;
         };
 
-        apps.default = flake-utils.lib.mkApp {
-          drv = gop;
-          inherit (gop) meta;
+        # mkApp from flake-utils does not accept a meta attribute; the
+        # meta block is appended after the fact. nix flake check
+        # otherwise warns "app lacks attribute 'meta'".
+        apps.default = (flake-utils.lib.mkApp { drv = gop; }) // {
+          meta = gop.meta;
         };
 
         devShells.default = pkgs.mkShell {
