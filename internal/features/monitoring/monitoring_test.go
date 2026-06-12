@@ -1,10 +1,30 @@
 package monitoring
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/cloudogu/gitops-playground/go/internal/config"
+	"github.com/cloudogu/gitops-playground/go/internal/k8s"
 )
+
+// stubAnnotations satisfies NamespaceAnnotationReader for the OpenShift
+// UID resolution tests below.
+type stubAnnotations struct {
+	values map[string]map[string]string // namespace -> key -> value
+	err    error
+}
+
+func (s stubAnnotations) NamespaceAnnotation(_ context.Context, namespace, key string) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
+	if ns, ok := s.values[namespace]; ok {
+		return ns[key], nil
+	}
+	return "", nil
+}
 
 // -----------------------------------------------------------------------------
 // Top-level wiring
@@ -434,6 +454,64 @@ func TestParseImage(t *testing.T) {
 			t.Errorf("parseImage(%q)=(%q,%q,%q), want (%q,%q,%q)",
 				c.in, reg, repo, tag, c.registry, c.repo, c.tag)
 		}
+	}
+}
+
+func TestResolveOpenShiftUID(t *testing.T) {
+	tests := []struct {
+		name    string
+		reader  stubAnnotations
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "canonical uid range",
+			reader: stubAnnotations{values: map[string]map[string]string{
+				"monitoring": {k8s.OpenShiftUIDRangeAnnotation: "1000700000/10000"},
+			}},
+			want: "1000700000",
+		},
+		{
+			name: "empty annotation falls back to empty uid",
+			reader: stubAnnotations{values: map[string]map[string]string{
+				"monitoring": {k8s.OpenShiftUIDRangeAnnotation: ""},
+			}},
+			want: "",
+		},
+		{
+			name:   "missing annotation falls back to empty uid",
+			reader: stubAnnotations{values: map[string]map[string]string{"monitoring": {}}},
+			want:   "",
+		},
+		{
+			name:    "API error is surfaced",
+			reader:  stubAnnotations{err: errors.New("boom")},
+			wantErr: true,
+		},
+		{
+			name: "garbage annotation falls back to empty uid",
+			reader: stubAnnotations{values: map[string]map[string]string{
+				"monitoring": {k8s.OpenShiftUIDRangeAnnotation: "not/a-number"},
+			}},
+			want: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveOpenShiftUID(context.Background(), tc.reader, "monitoring")
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("uid=%q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

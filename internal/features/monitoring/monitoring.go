@@ -17,12 +17,23 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/cloudogu/gitops-playground/go/internal/config"
 	"github.com/cloudogu/gitops-playground/go/internal/deployment"
 	"github.com/cloudogu/gitops-playground/go/internal/feature"
+	"github.com/cloudogu/gitops-playground/go/internal/k8s"
 )
+
+// NamespaceAnnotationReader is the narrow surface the monitoring feature
+// needs from the K8s adapter to resolve the OpenShift UID range
+// annotation on its own namespace at install time. Defined here (the
+// consumer) so the K8s adapter does not import the feature; see
+// AGENTS.md §4.9.
+type NamespaceAnnotationReader interface {
+	NamespaceAnnotation(ctx context.Context, namespace, key string) (string, error)
+}
 
 const (
 	releaseName = "kube-prometheus-stack"
@@ -47,10 +58,15 @@ type MetricsEndpoint struct {
 type Feature struct {
 	Deploy deployment.Strategy
 	Images feature.ImagePullSecretCreator
+	// Namespaces resolves the OpenShift UID-range annotation on the
+	// monitoring namespace at install time. Optional: a nil reader
+	// short-circuits the OpenShift UID lookup to "no UID set", which
+	// matches the Groovy behaviour for non-OpenShift clusters.
+	Namespaces NamespaceAnnotationReader
 	// OpenShiftUID is the numeric UID discovered from the namespace
-	// annotation when running on OpenShift. Empty otherwise. The runner
-	// fills this in before Install — Monitoring.findValidOpenShiftUid in
-	// the Groovy port.
+	// annotation when running on OpenShift. Empty otherwise. Install
+	// fills this in from Namespaces.NamespaceAnnotation — see
+	// Monitoring.findValidOpenShiftUid in the Groovy port.
 	OpenShiftUID string
 	// SCM and Jenkins are the prometheus scrape targets the runner builds
 	// from the active SCM/Jenkins configuration. Both are optional.
@@ -91,6 +107,22 @@ func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
+	// Resolve the OpenShift UID from the namespace annotation. Matches
+	// Monitoring.findValidOpenShiftUid in the Groovy original: read
+	// openshift.io/sa.scc.uid-range and take the integer left of the
+	// slash. EnsureProxyRegistryPullSecret above has ensured the
+	// namespace exists when image pull secrets are enabled; otherwise
+	// the namespace is created later by helm — in that case the
+	// annotation lookup correctly returns "namespace not found", which
+	// the runner can choose to surface.
+	if cfg.Application.Openshift && f.Namespaces != nil && f.OpenShiftUID == "" {
+		uid, err := resolveOpenShiftUID(ctx, f.Namespaces, ns)
+		if err != nil {
+			return fmt.Errorf("monitoring: resolve openshift uid: %w", err)
+		}
+		f.OpenShiftUID = uid
+	}
+
 	values := f.buildValues(cfg)
 	valuesPath, cleanup, err := deployment.RenderHelmValues(cfg, deployment.HelmValuesRequest{
 		InlineValues: cfg.Features.Monitoring.Helm.Values,
@@ -111,6 +143,27 @@ func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 		HelmValuesPath: valuesPath,
 		RepoType:       deployment.RepoHelm,
 	})
+}
+
+// resolveOpenShiftUID reads the openshift.io/sa.scc.uid-range annotation
+// on the monitoring namespace and returns the start UID as a string. An
+// empty or unparseable annotation collapses to "" + nil so the rest of
+// Install proceeds (helm/SCC will then refuse if we really were on
+// OpenShift). API errors from the k8s reader — including a missing
+// namespace — are surfaced verbatim. The Groovy original threw
+// "Could not find a valid UID! Really running on OpenShift?" on an
+// empty annotation; that fail-loud branch belongs upstream once the
+// runner can tell us the cluster is definitely OpenShift.
+func resolveOpenShiftUID(ctx context.Context, r NamespaceAnnotationReader, namespace string) (string, error) {
+	value, err := r.NamespaceAnnotation(ctx, namespace, k8s.OpenShiftUIDRangeAnnotation)
+	if err != nil {
+		return "", err
+	}
+	uid, ok := k8s.ParseOpenShiftUIDRange(value)
+	if !ok {
+		return "", nil
+	}
+	return strconv.Itoa(uid), nil
 }
 
 // buildValues composes the helm values for kube-prometheus-stack. The map
