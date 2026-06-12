@@ -153,10 +153,8 @@ func Build(ctx context.Context, cfg *config.Config, opts BuildOptions) (*Compone
 	)
 
 	c.Runner = runner.Runner{
-		Registry: registry,
-		// PersistConfig is left nil for now; the implementation hooks
-		// into k8s.Client.ApplyGenericSecret once the cfg→secret mapping
-		// is finalised (planned alongside the destroy path).
+		Registry:      registry,
+		PersistConfig: persistConfig(c.K8s),
 	}
 
 	c.Destroyer = destroy.New()
@@ -173,6 +171,47 @@ func Build(ctx context.Context, cfg *config.Config, opts BuildOptions) (*Compone
 		c.Destroyer.Register(destroy.ScmmHandler{Client: c.SCM})
 	}
 	return c, nil
+}
+
+// defaultGopNamespace is the fallback namespace used when
+// cfg.Application.GopNamespace is empty. Matches the Groovy
+// Application.storeGopInformationInSecret() literal.
+const defaultGopNamespace = "gop-job"
+
+// gopConfigurationSecret is the name of the secret holding the resolved
+// Config and the generated admin password. Matches the Groovy literal.
+const gopConfigurationSecret = "gop-configuration"
+
+// persistConfig returns the runner.PersistConfig closure that writes the
+// resolved Config into a `gop-configuration` Secret. The closure is bound
+// to k so each Build() call captures its own client. A nil k yields a
+// closure that errors clearly instead of panicking — this lets dry-run
+// callers still set the hook without a live cluster.
+func persistConfig(k *k8s.Client) func(ctx context.Context, cfg *config.Config) error {
+	return func(ctx context.Context, cfg *config.Config) error {
+		if k == nil {
+			return fmt.Errorf("persist gop configuration: k8s client not initialised (dry-run mode?)")
+		}
+		ns := cfg.Application.GopNamespace
+		if ns == "" {
+			ns = defaultGopNamespace
+		}
+		yamlBlob, err := cfg.ToYAML(true)
+		if err != nil {
+			return fmt.Errorf("serialising gop configuration: %w", err)
+		}
+		if err := k.EnsureNamespace(ctx, ns); err != nil {
+			return fmt.Errorf("ensuring gop namespace %q: %w", ns, err)
+		}
+		data := map[string]string{
+			"gop-initial-password": cfg.Application.Password,
+			"gop-config":           yamlBlob,
+		}
+		if err := k.ApplyGenericSecret(ctx, ns, gopConfigurationSecret, data); err != nil {
+			return fmt.Errorf("writing gop configuration secret %s/%s: %w", ns, gopConfigurationSecret, err)
+		}
+		return nil
+	}
 }
 
 func buildScmm(cfg *config.Config, timeout time.Duration) *scmmanager.Client {
