@@ -1,0 +1,66 @@
+<#assign DockerImageParser=statics['com.cloudogu.gitops.utils.DockerImageParser']>
+ui:
+  enabled: true
+  externalPort: 80
+  serviceType: ClusterIP
+injector:
+  enabled: false
+<#if config.registry.createImagePullSecrets == true>
+global:
+  imagePullSecrets:
+  - name: proxy-registry
+</#if>
+<#if config.features.secrets.vault.helm.image?has_content 
+  || host?has_content 
+  || config.application.podResources == true
+  || dev?has_content>
+server:
+</#if>
+<#if config.features.secrets.vault.helm.image?has_content>
+<#assign imageObject = DockerImageParser.parse(config.features.secrets.vault.helm.image)>
+  image:
+      repository: ${imageObject.registryAndRepositoryAsString}
+      tag: ${imageObject.tag}
+</#if>
+<#if host?has_content>
+  ingress:
+    enabled: true
+    hosts:
+      - host: ${host}
+<#if config.features.certManager.active!false>
+    annotations:
+      cert-manager.io/cluster-issuer: ${config.features.certManager.issuer}
+    tls:
+      - secretName: vault-tls
+        hosts:
+        - ${host}
+</#if>  
+</#if>
+<#if dev?has_content>
+  dev:
+    enabled: true
+    devRootToken: ${dev.rootToken}
+  volumes:
+  - name: ${dev.vaultPostStartVolume}
+    configMap:
+      name: ${dev.vaultPostStartConfigMap}
+      defaultMode: 0774
+  volumeMounts:
+  - mountPath: /var/opt/scripts
+    name: ${dev.vaultPostStartVolume}
+    readOnly : true
+  postStart:
+    - /bin/sh
+    - -c
+    - USERNAME=${config.application.username} PASSWORD=${config.application.password} ARGOCD=${config.features.argocd.active?c} /var/opt/scripts/${dev.postStartScriptName} 2>&1 ${"|"} tee /tmp/dev-post-start.log
+</#if>
+
+<#if config.application.podResources == true>
+  resources:
+      limits:
+        memory: 200Mi
+        cpu: 500m
+      requests:
+        memory: 100Mi
+        cpu: 50m
+</#if>

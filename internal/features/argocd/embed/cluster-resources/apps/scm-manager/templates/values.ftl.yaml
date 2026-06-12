@@ -1,0 +1,33 @@
+persistence:
+  size: 1Gi
+
+#increased startup time for slower devices
+livenessProbe:
+  initialDelaySeconds: 120
+
+fullnameOverride : ${releaseName}
+
+extraEnv: |
+  - name: SCM_WEBAPP_INITIALUSER
+    value: "${username}"
+  - name: SCM_WEBAPP_INITIALPASSWORD
+    value: "${password}"
+
+service:
+  type: NodePort
+
+<#if host?has_content>
+ingress:
+  enabled: true
+  path: /
+  hosts:
+    - ${host}
+<#if config.features.certManager.active == true>
+  annotations:
+    cert-manager.io/cluster-issuer: ${config.features.certManager.issuer}
+  tls:
+    - secretName: scm-manager-tls
+      hosts:
+        - ${host}
+</#if>
+</#if>

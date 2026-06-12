@@ -153,12 +153,27 @@ func OperatorRbacTenantSubfolder() string { return OperatorRbacSubfolder() + "/t
 // RepoInitializationAction clones a single repo (via scm.Provider +
 // git.Service), copies the configured subdirectories from the embedded
 // template tree and runs replaceTemplates.
+//
+// templateFS / copyFromDir replace the Groovy "working dir + relative
+// path" pair: templateFS is the embedded fs.FS produced by
+// ClusterResourcesFS, and copyFromDir is the subtree inside it that
+// should be projected over the cloned repo. Two values are special:
+//
+//   - "" or "." means "copy the whole cluster-resources tree" (this is
+//     the single-instance + dedicated-cluster repo case).
+//   - "apps/argocd/multiTenant/tenant" is what the dedicated multi-
+//     tenant code path uses for the tenant bootstrap repo.
+//
+// The on-disk read path that lived here in phase 3a is gone; the
+// runner no longer needs a working directory that mirrors
+// retired/argocd/cluster-resources.
 type RepoInitializationAction struct {
 	cfg           *config.Config
 	git           git.Service
 	provider      scm.Provider
 	repoTarget    string // "argocd/cluster-resources"
-	copyFromDir   string // "argocd/cluster-resources" on disk
+	templateFS    fs.FS  // embedded cluster-resources tree (see assets.go)
+	copyFromDir   string // sub-path inside templateFS, "" or "." = whole tree
 	subDirsToCopy map[string]struct{}
 	cloneDir      string    // populated after initLocalRepo
 	repo          *git.Repo // populated after initLocalRepo
@@ -248,9 +263,9 @@ func (r *RepoInitializationAction) InitLocalRepo(ctx context.Context) error {
 	return nil
 }
 
-// copyTree walks copyFromDir and copies the files that pass the prefix
-// filter into r.cloneDir. The filter mirrors the Groovy
-// RepoInitializationAction.createSubdirFilter logic:
+// copyTree walks copyFromDir inside templateFS and copies the files
+// that pass the prefix filter into r.cloneDir. The filter mirrors the
+// Groovy RepoInitializationAction.createSubdirFilter logic:
 //
 //   - always copy the root entry
 //   - never copy anything under apps/<feature>/templates/** EXCEPT the
@@ -258,13 +273,25 @@ func (r *RepoInitializationAction) InitLocalRepo(ctx context.Context) error {
 //   - when subDirsToCopy is non-empty, only files inside one of those
 //     prefixes are copied (their parent dirs are kept for structure)
 //
-// The Groovy used java.io.FileFilter; we inline the same predicate in Go.
+// The on-disk version used filepath.WalkDir; this one walks the
+// embedded fs.FS with fs.WalkDir. The semantics are identical because
+// the same prefix filter runs over the same relative paths.
 func (r *RepoInitializationAction) copyTree() error {
-	srcRoot, err := filepath.Abs(r.copyFromDir)
-	if err != nil {
-		return err
+	if r.templateFS == nil {
+		return errors.New("argocd: templateFS not set on RepoInitializationAction")
 	}
-	info, err := os.Stat(srcRoot)
+	srcRoot := r.copyFromDir
+	if srcRoot == "" {
+		srcRoot = "."
+	}
+	// fs.FS uses forward slashes everywhere; reject Windows-style
+	// separators a future caller might pass in.
+	srcRoot = strings.TrimPrefix(filepath.ToSlash(srcRoot), "./")
+	if srcRoot == "" {
+		srcRoot = "."
+	}
+
+	info, err := fs.Stat(r.templateFS, srcRoot)
 	if err != nil {
 		return fmt.Errorf("argocd: stat template source %q: %w", srcRoot, err)
 	}
@@ -280,15 +307,20 @@ func (r *RepoInitializationAction) copyTree() error {
 	hasPrefixes := len(prefixes) > 0
 	templateInclude := "apps/argocd/argocd/templates/"
 
-	return filepath.WalkDir(srcRoot, func(path string, d fs.DirEntry, walkErr error) error {
+	return fs.WalkDir(r.templateFS, srcRoot, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		rel, err := filepath.Rel(srcRoot, path)
-		if err != nil {
-			return err
+		// fs.WalkDir hands us paths with forward slashes already.
+		var relSlash string
+		if srcRoot == "." {
+			relSlash = path
+		} else {
+			relSlash = strings.TrimPrefix(path, srcRoot+"/")
+			if path == srcRoot {
+				relSlash = "."
+			}
 		}
-		relSlash := filepath.ToSlash(rel)
 		isDir := d.IsDir()
 
 		// Always copy the root.
@@ -343,11 +375,12 @@ func (r *RepoInitializationAction) copyTree() error {
 			}
 		}
 
-		dest := filepath.Join(r.cloneDir, rel)
+		// rel for OS paths: convert forward to filepath separators.
+		dest := filepath.Join(r.cloneDir, filepath.FromSlash(relSlash))
 		if isDir {
 			return os.MkdirAll(dest, 0o755)
 		}
-		return copyFile(path, dest)
+		return copyEmbeddedFile(r.templateFS, path, dest)
 	})
 }
 
@@ -405,9 +438,10 @@ type ArgoCDRepoSetup struct {
 	all              []*RepoInitializationAction
 }
 
-// NewRepoSetup builds an ArgoCDRepoSetup. The repo template source is
-// the on-disk argocd/cluster-resources tree at the repo root – the
-// runner passes the working directory and we resolve from there.
+// NewRepoSetup builds an ArgoCDRepoSetup. The template source is the
+// embedded cluster-resources tree (see assets.go); the runner no
+// longer has to mount a working directory that shadows
+// retired/argocd/cluster-resources.
 func NewRepoSetup(cfg *config.Config, gitSvc git.Service, prov scm.Provider) (*ArgoCDRepoSetup, error) {
 	if cfg == nil {
 		return nil, errors.New("argocd: NewRepoSetup requires cfg")
@@ -417,6 +451,11 @@ func NewRepoSetup(cfg *config.Config, gitSvc git.Service, prov scm.Provider) (*A
 	}
 	if prov == nil {
 		return nil, errors.New("argocd: NewRepoSetup requires scm.Provider")
+	}
+
+	tmplFS, err := ClusterResourcesFS()
+	if err != nil {
+		return nil, fmt.Errorf("argocd: load embedded cluster-resources: %w", err)
 	}
 
 	dedicated := isDedicated(cfg)
@@ -431,14 +470,16 @@ func NewRepoSetup(cfg *config.Config, gitSvc git.Service, prov scm.Provider) (*A
 			git:         gitSvc,
 			provider:    prov,
 			repoTarget:  "argocd/cluster-resources",
-			copyFromDir: "argocd/cluster-resources/apps/argocd/multiTenant/tenant",
+			templateFS:  tmplFS,
+			copyFromDir: "apps/argocd/multiTenant/tenant",
 		}
 		cluster = &RepoInitializationAction{
 			cfg:         cfg,
 			git:         gitSvc,
 			provider:    prov,
 			repoTarget:  "argocd/cluster-resources",
-			copyFromDir: "argocd/cluster-resources",
+			templateFS:  tmplFS,
+			copyFromDir: ".",
 		}
 		all = append(all, tenant, cluster)
 	} else {
@@ -447,7 +488,8 @@ func NewRepoSetup(cfg *config.Config, gitSvc git.Service, prov scm.Provider) (*A
 			git:         gitSvc,
 			provider:    prov,
 			repoTarget:  "argocd/cluster-resources",
-			copyFromDir: "argocd/cluster-resources",
+			templateFS:  tmplFS,
+			copyFromDir: ".",
 		}
 		all = append(all, cluster)
 	}
@@ -656,6 +698,32 @@ func centralSCMURL(cfg *config.Config) string {
 
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return nil
+}
+
+// copyEmbeddedFile streams an entry out of an fs.FS (typically the
+// embedded cluster-resources tree) onto disk. The destination's parent
+// directory is created lazily so callers don't have to pre-walk.
+func copyEmbeddedFile(src fs.FS, srcPath, dst string) error {
+	in, err := src.Open(srcPath)
 	if err != nil {
 		return err
 	}
