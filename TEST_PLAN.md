@@ -155,6 +155,74 @@ nuisance findings.
 - New entry **T-3** (P3): `apps.default` derivation lacks `meta` —
   cosmetic nix warning, not a build failure; add `meta` block to silence.
 
+### 2026-06-12 — iteration 3 (claude-4.7, branch `feature/go_port`)
+
+#### Goal
+
+End-to-end run of `gop` against a real Kubernetes cluster. Per the
+user's brief, the Groovy YAML config files must keep working unchanged.
+First profile target: `minimal`, then `full`.
+
+#### Environment
+
+- `nix shell` provided minikube v1.38.1, podman v5.8.2, kubectl
+  v1.36.1, helm v3.20.2, Go v1.26.3.
+- Cluster: rootless minikube with podman driver + cri-o.
+- gop ran outside the cluster against a service-URL exposed by
+  `minikube service scmm -n scm-manager --url`.
+
+#### What ran
+
+- `nix flake lock` already in place.
+- New strict-decode test (`profile_compat_test.go`) — all 12 embedded
+  profiles parse with `yaml.KnownFields(true)`.
+- Reflective schema dump (`schema_keys_test.go`) — diffed against
+  `retired/docs/configuration.schema.json`. Surfaced T-5 (typed
+  scm.* + multiTenant.*).
+- `gop --profile=minimal --config-file=/tmp/gop-e2e-overrides.yaml
+  --yes --debug` ran end-to-end without an error exit.
+
+#### Findings
+
+| # | Finding | Resolution |
+| - | --- | --- |
+| F-8 | `config.New()` set `Application.Username` but never `Application.Password`. The Groovy Config has `DEFAULT_ADMIN_PW = generatePassword()` baked into the static initialiser; the Go port lost it. SCM-Manager's `Validate` complained loudly. | New `var DefaultAdminPW = generatePassword()` plus `password.go` with the `crypto/rand` helper. `New()` seeds both `Application.Password` and `Jenkins.Password` from it. |
+| F-9 | Wire graph routed every feature through `deployment.Deployer`, which picks the ArgoCD strategy when `cfg.Features.ArgoCD.Active`. For SCM-Manager and ArgoCD themselves that is a chicken-and-egg: ArgoCD isn't installed yet. | SCM-Manager and ArgoCD now wire `helmStrategy` directly (matches Registry, which already did this). Documented at the call site. |
+| F-10 | `argocd.Feature` was wired without an `SCM` field, so `NewRepoSetup` failed with `requires scm.Provider`. | wire.go: `SCM: c.SCM`. |
+| F-11 | `argocd.RepoInitializationAction.InitLocalRepo` never set Git credentials, so the SCMM clone returned `authentication required`. | New `scmAuth()` helper reads `cfg.Scm.Raw["scmManager"].{username,password}` into a `git.Auth`. Wired into `git.CloneOptions.Auth`; downstream `Push` inherits via `r.Auth`. |
+| F-12 | SCM-Manager v3 fails with `could not modify home directory at /var/lib/scm` under rootless podman/cri-o because the PVC fsGroup mismatches. | Test-only workaround via `/tmp/gop-e2e-overrides.yaml` that disables persistence + pins securityContext. Production clusters with rooted CRI are unaffected. |
+| F-13 | SCMM default `namespaceStrategy: UsernameNamespaceStrategy` makes `CreateRepository(namespace=argocd, ...)` land under namespace `admin`. | Manually set `CustomNamespaceStrategy` via `curl PUT /scm/api/v2/config` — see T-8 for the proper code fix. |
+| F-14 | `argocd.RepoInitializationAction.copyTree()` reads `./argocd/cluster-resources` from disk. After phase 8 that path lives under `retired/argocd/cluster-resources`. | Symlinked locally for the test (`argocd → retired/argocd`). Proper fix tracked as T-7 (embed via `//go:embed`). |
+| F-15 | ArgoCD `Install` pushes the cluster-resources repo but never helm-installs the chart or patches the admin secret — see the doc comment that calls this out. After a green `gop --profile=minimal` the cluster has SCMM running, the repo populated, and no Argo CD. | Tracked as T-9. |
+
+#### Results
+
+- gop completed `--profile=minimal --yes --debug` with exit code 0.
+- Cluster state:
+  - `scm-manager` namespace, helm release `scmm` deployed and `1/1
+    Ready`.
+  - SCMM API reachable; `argocd/cluster-resources` repo created with
+    a `main` branch and an initial commit pushed.
+- Strict-decode test green for all 12 profiles → YAML compatibility
+  with Groovy configs holds for the bundled examples (the broader
+  scm.* / multiTenant.* surface still bypasses strict checks until
+  T-5 lands).
+
+#### Caveats
+
+- ArgoCD itself was NOT installed in the cluster — T-9 documents the
+  stub. The `--profile=full` target is therefore out of reach in this
+  iteration. The user agreed to incremental progress.
+- Out-of-cluster mode needed a config-file override (T-10).
+- Local `argocd/` symlink was removed before commit.
+
+#### REMAINING.md updates
+
+- New: T-7 (embed template tree), T-8 (SCMM Configure for external
+  case), T-9 (ArgoCD helm-install + secret-patch), T-10 (out-of-
+  cluster mode).
+- T-5 reinforced by the schema-key reflection diff.
+
 ## What "passing" means
 
 A change is allowed to merge when:

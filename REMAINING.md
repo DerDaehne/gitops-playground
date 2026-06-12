@@ -147,6 +147,37 @@ ContentLoader-Code in `internal/content/*` referenziert diese Felder
 aber noch nicht. Bei der Implementierung von P1.4 (Content COPY) mit
 auf die neuen Namen achten.
 
+**T-7 (P1.new)**: ArgoCD-Template-Tree (`argocd/cluster-resources/`)
+in das Binary embedden statt vom Disk lesen. Aktuell verweist
+`internal/features/argocd/setup.go` auf den relativen Pfad
+`argocd/cluster-resources/`, der nur existiert wenn entweder der
+Maven-Tree gerendert ist (`retired/argocd/cluster-resources/`) oder
+ein Symlink gesetzt wurde. Fix: `//go:embed argocd/cluster-resources`
+im Argo-Feature plus `copyFromFS` analog zum profile-Loader.
+
+**T-8 (P1.new)**: SCMM-Setup-Configs (`namespaceStrategy:
+CustomNamespaceStrategy`, baseUrl, plugin-installs) in das Go-Feature
+einziehen. Aktuell wird das in der externalSCMM-Variante übersprungen
+und der User muss `PUT /scm/api/v2/config` selbst absetzen — siehe
+TEST_PLAN iteration 3. Die `Configure(ctx)`-Methode in
+`internal/features/scmmanager/setup.go` ist nur dann reichbar, wenn
+SCMM als internal markiert ist, was im Out-of-Cluster-Lauf nicht
+funktioniert.
+
+**T-9 (P1.new)**: ArgoCD-`Install`-Pfad pusht das Repo, lässt die
+helm-Install plus den `argocd-secret`-bcrypt-Patch aber aus (siehe
+Doc-Kommentar in `internal/features/argocd/argocd.go:Install`). Mit
+dem Push allein bleibt das Cluster nach `gop --profile=minimal` ohne
+laufendes Argo CD. Fix: helm `repo add` + `dependency build` +
+`upgrade -i` plus Secret-Patch.
+
+**T-10 (P2.new)**: Lokal-E2E-Modus. Wenn gop von außerhalb des
+Clusters läuft, müssen Out-of-Cluster-URLs für SCMM/Jenkins
+verwendet werden. Heute geht das nur via `scm.scmManager.url`
+override (was die internal-install-Logik ausschaltet). Sauberer wäre
+ein `application.externalAccess: true` Flag oder eine
+Port-Forward-Hilfsfunktion.
+
 ## Empfohlene Reihenfolge
 
 T-2 (Dockerfile SHA256s) → P1.5 (`monitoring` OpenShift-UID) →

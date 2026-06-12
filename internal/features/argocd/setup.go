@@ -183,6 +183,22 @@ func (r *RepoInitializationAction) Repo() *git.Repo { return r.repo }
 // RepoTarget returns the "namespace/name" string.
 func (r *RepoInitializationAction) RepoTarget() string { return r.repoTarget }
 
+// scmAuth pulls the username/password the configurator placed under
+// cfg.Scm.Raw["scmManager"] so git Clone/Push can authenticate against
+// the bootstrap SCM. Empty when neither field is set.
+func (r *RepoInitializationAction) scmAuth() git.Auth {
+	if r.cfg == nil || r.cfg.Scm.Raw == nil {
+		return git.Auth{}
+	}
+	scmm, _ := r.cfg.Scm.Raw["scmManager"].(map[string]any)
+	if scmm == nil {
+		return git.Auth{}
+	}
+	user, _ := scmm["username"].(string)
+	pass, _ := scmm["password"].(string)
+	return git.Auth{Username: user, Password: pass}
+}
+
 // InitLocalRepo clones the SCM-side repo into a fresh temp dir and copies
 // the configured subdirectories from copyFromDir on top of it. Returns the
 // clone dir path.
@@ -209,7 +225,8 @@ func (r *RepoInitializationAction) InitLocalRepo(ctx context.Context) error {
 
 	url := r.provider.RepoURL(ns, name, scm.RepoURLClient)
 	repo, err := r.git.Clone(ctx, url, git.CloneOptions{
-		Dir: dir,
+		Dir:  dir,
+		Auth: r.scmAuth(),
 		Author: git.Identity{
 			Name:  r.cfg.Application.GitName,
 			Email: r.cfg.Application.GitEmail,

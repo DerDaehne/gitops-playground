@@ -24,6 +24,37 @@ const (
 	DefaultRegistryPort = 30000
 )
 
+// DefaultAdminPW is the per-process admin password every component
+// (Application / Jenkins / SCM-Manager / Argo CD) falls back to when
+// the user did not pin one explicitly. Generated once at program start,
+// matching the Groovy `public static final String DEFAULT_ADMIN_PW =
+// generatePassword()` in Config.groovy.
+var DefaultAdminPW = generatePassword()
+
+// generatePassword returns a 12-character random password from the
+// alphabet the Groovy original uses. Crypto-random.
+func generatePassword() string {
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$%&"
+	out := make([]byte, 12)
+	for i := range out {
+		n, err := cryptoRandInt(len(alphabet))
+		if err != nil {
+			// crypto/rand should not fail on a sane OS; falling back to
+			// a fixed string is safer than panicking on startup.
+			return "admin-fallback"
+		}
+		out[i] = alphabet[n]
+	}
+	return string(out)
+}
+
+// cryptoRandInt returns a uniformly distributed int in [0, max).
+// Indirected through this helper so generatePassword stays small.
+func cryptoRandInt(max int) (int, error) {
+	n, err := cryptoRand(max)
+	return int(n), err
+}
+
 // Config is the root configuration object. The structure mirrors
 // com.cloudogu.gitops.config.Config.
 type Config struct {
@@ -55,6 +86,7 @@ func New() *Config {
 			InternalBashImage:           "bash:5",
 			InternalDockerClientVersion: "27.1.2",
 			Username:                    DefaultAdminUser,
+			Password:                    DefaultAdminPW,
 			MetricsUsername:             "metrics",
 			MetricsPassword:             "metrics",
 			AdditionalEnvs:              map[string]string{},
@@ -68,6 +100,7 @@ func New() *Config {
 		},
 		Application: ApplicationSchema{
 			Username: DefaultAdminUser,
+			Password: DefaultAdminPW,
 			GitName:  "Cloudogu",
 			GitEmail: "hello@cloudogu.com",
 		},

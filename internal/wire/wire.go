@@ -124,19 +124,26 @@ func Build(ctx context.Context, cfg *config.Config, opts BuildOptions) (*Compone
 
 	registry := feature.NewRegistry()
 	registry.Add(
+		// Registry bootstraps itself via helm (chicken-and-egg with
+		// ArgoCD that hasn't been installed yet at this point).
 		freg.Feature{Helm: helmStrategy},
+		// SCM-Manager bootstraps the cluster — Argo CD does not exist
+		// at install order 60, so go via helm imperatively.
 		fscm.Feature{
-			Deploy:        c.Deploy,
+			Deploy:        helmStrategy,
 			Images:        images,
 			Client:        c.SCM,
 			JenkinsActive: func(c *config.Config) bool { return c.Jenkins.Active },
 		},
 		fjenkins.Feature{Deploy: c.Deploy, API: jenkinsFactory, Images: images},
 		fmon.Feature{Deploy: c.Deploy, Images: images},
+		// ArgoCD installs itself imperatively via helm; it cannot use
+		// the ArgoCD strategy on its own first run.
 		fargocd.Feature{
-			Deploy: c.Deploy,
+			Deploy: helmStrategy,
 			Helm:   &c.Helm,
 			Git:    gitService,
+			SCM:    c.SCM, // SCM-Manager provider, may be nil for first-bootstrap edge cases
 			Images: images,
 		},
 		fvault.Feature{Deploy: c.Deploy, Images: images},
