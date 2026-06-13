@@ -198,7 +198,7 @@ func TestInitialiseBaseURLHyphen(t *testing.T) {
 
 func TestInitialiseRequiresPrefixForMultiTenant(t *testing.T) {
 	c := New()
-	c.MultiTenant.Raw = map[string]any{"useDedicatedInstance": true}
+	c.MultiTenant.UseDedicatedInstance = true
 	err := Initialise(c)
 	if err == nil || !strings.Contains(err.Error(), "Multi-Tenant") {
 		t.Errorf("expected multi-tenant prefix error, got %v", err)

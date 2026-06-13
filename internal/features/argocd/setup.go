@@ -198,20 +198,16 @@ func (r *RepoInitializationAction) Repo() *git.Repo { return r.repo }
 // RepoTarget returns the "namespace/name" string.
 func (r *RepoInitializationAction) RepoTarget() string { return r.repoTarget }
 
-// scmAuth pulls the username/password the configurator placed under
-// cfg.Scm.Raw["scmManager"] so git Clone/Push can authenticate against
-// the bootstrap SCM. Empty when neither field is set.
+// scmAuth pulls the SCM-Manager credentials so git Clone/Push can
+// authenticate against the bootstrap SCM.
 func (r *RepoInitializationAction) scmAuth() git.Auth {
-	if r.cfg == nil || r.cfg.Scm.Raw == nil {
+	if r.cfg == nil {
 		return git.Auth{}
 	}
-	scmm, _ := r.cfg.Scm.Raw["scmManager"].(map[string]any)
-	if scmm == nil {
-		return git.Auth{}
+	return git.Auth{
+		Username: r.cfg.Scm.ScmManager.Username,
+		Password: r.cfg.Scm.ScmManager.Password,
 	}
-	user, _ := scmm["username"].(string)
-	pass, _ := scmm["password"].(string)
-	return git.Auth{Username: user, Password: pass}
 }
 
 // InitLocalRepo clones the SCM-side repo into a fresh temp dir and copies
@@ -647,49 +643,27 @@ func determineClusterResourceSubDirs(cfg *config.Config) []string {
 	return out
 }
 
-// isDedicated reads cfg.MultiTenant.Raw["useDedicatedInstance"]. Until
-// the typed schema lands this remains the canonical access point.
+// isDedicated reflects MultiTenant.UseDedicatedInstance.
 func isDedicated(cfg *config.Config) bool {
-	if cfg.MultiTenant.Raw == nil {
-		return false
-	}
-	b, _ := cfg.MultiTenant.Raw["useDedicatedInstance"].(bool)
-	return b
+	return cfg.MultiTenant.UseDedicatedInstance
 }
 
-// scmManagerURL reads cfg.Scm.Raw["scmManager"]["url"] without crashing
-// on missing/empty intermediate maps.
+// scmManagerURL returns the typed scm.scmManager.url.
 func scmManagerURL(cfg *config.Config) string {
-	if cfg.Scm.Raw == nil {
-		return ""
-	}
-	scmm, _ := cfg.Scm.Raw["scmManager"].(map[string]any)
-	if scmm == nil {
-		return ""
-	}
-	u, _ := scmm["url"].(string)
-	return u
+	return cfg.Scm.ScmManager.URL
 }
 
-// centralSCMURL returns the multi-tenant "central" repo URL prefix, or
-// "" when not in dedicated mode. The Groovy buildTemplateValues asks
-// gitHandler.central?.repoPrefix(); we don't have a GitHandler in Go
-// yet, so we surface the raw URL from the multiTenant config.
+// centralSCMURL returns the multi-tenant central SCM-Manager URL when
+// in dedicated mode. The Groovy buildTemplateValues asks
+// gitHandler.central?.repoPrefix(); without a Go GitHandler we surface
+// the typed multiTenant.scmManager.url field directly.
 //
 //nolint:unused // Consumed once GitHandler.central is wired (REMAINING P1).
 func centralSCMURL(cfg *config.Config) string {
 	if !isDedicated(cfg) {
 		return ""
 	}
-	if cfg.MultiTenant.Raw == nil {
-		return ""
-	}
-	c, _ := cfg.MultiTenant.Raw["central"].(map[string]any)
-	if c == nil {
-		return ""
-	}
-	u, _ := c["url"].(string)
-	return u
+	return cfg.MultiTenant.ScmManager.URL
 }
 
 // -----------------------------------------------------------------------------

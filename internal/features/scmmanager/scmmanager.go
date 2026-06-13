@@ -97,7 +97,7 @@ func (Feature) IsEnabled(cfg *config.Config) bool {
 // from scm.scmManager.namespace, which defaults to "scm-manager" in
 // ScmManagerTenantConfig; we materialise the same default here.
 func (Feature) Namespace(cfg *config.Config) string {
-	ns := scmmString(cfg, "namespace")
+	ns := cfg.Scm.ScmManager.Namespace
 	if ns == "" {
 		ns = defaultNS
 	}
@@ -109,22 +109,24 @@ func (Feature) Namespace(cfg *config.Config) string {
 // command, not by this feature.
 func (Feature) Disable(_ context.Context, _ *config.Config) error { return nil }
 
-// Validate checks the minimal subset of cfg.Scm.Raw["scmManager"] keys that
-// the configurator should have filled in by the time the install pipeline
+// Validate checks the minimal subset of cfg.Scm.ScmManager fields the
+// configurator should have filled in by the time the install pipeline
 // runs. It is a fail-fast guard so we error out before we try to PUT
 // /v2/config with empty credentials.
 func (f Feature) Validate(_ context.Context, cfg *config.Config) error {
 	if !isInternal(cfg) {
 		return nil
 	}
-	for _, key := range []string{"username", "password"} {
-		if v := scmmString(cfg, key); v == "" {
-			return fmt.Errorf("scm-manager: scm.scmManager.%s must not be empty", key)
-		}
+	scmm := cfg.Scm.ScmManager
+	if scmm.Username == "" {
+		return fmt.Errorf("scm-manager: scm.scmManager.username must not be empty")
+	}
+	if scmm.Password == "" {
+		return fmt.Errorf("scm-manager: scm.scmManager.password must not be empty")
 	}
 	// urlForJenkins is required iff Jenkins is going to be configured.
 	if f.JenkinsActive != nil && f.JenkinsActive(cfg) {
-		if v := scmmString(cfg, "urlForJenkins"); v == "" {
+		if scmm.UrlForJenkins == "" {
 			return fmt.Errorf("scm-manager: scm.scmManager.urlForJenkins must not be empty when jenkins is active")
 		}
 	}
@@ -184,81 +186,41 @@ func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-// isInternal reports whether SCM-Manager runs inside the cluster. The
-// opaque cfg.Scm.Raw["scmManager"] map is the source of truth; "url" being
-// empty means "internal", which is the same gate the Groovy ScmManager
-// constructor uses (scmmConfig.internal). External-SCMM users opt out by
-// setting scm.scmManager.url.
+// isInternal reports whether SCM-Manager runs inside the cluster. With
+// the typed schema, the gate collapses to "no URL = internal".
 func isInternal(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
 	}
-	if v, ok := cfg.Scm.Raw["scmManager"].(map[string]any); ok {
-		if u, _ := v["url"].(string); u != "" {
-			return false
-		}
-		return true
-	}
-	// No scmManager block at all – treat as internal so a freshly-defaulted
-	// config behaves the same as the Groovy default (internal = true).
-	return true
+	return cfg.Scm.ScmManager.URL == ""
 }
 
-// scmmString returns cfg.Scm.Raw["scmManager"][key] as a string, or "" if
-// the map / key is missing or has the wrong type.
-func scmmString(cfg *config.Config, key string) string {
-	if cfg == nil {
-		return ""
-	}
-	m, ok := cfg.Scm.Raw["scmManager"].(map[string]any)
-	if !ok {
-		return ""
-	}
-	s, _ := m[key].(string)
-	return s
-}
-
-// scmmHelmChartCoordinates extracts chart / repoURL / version from the
-// opaque scmManager.helm sub-map, falling back to the upstream SCM-Manager
-// chart defaults (see ScmTenantSchema.scmManager.helm).
+// scmmHelmChartCoordinates returns the helm chart / repoURL / version
+// the SCM-Manager feature should install. The typed schema's defaults
+// (set by config.New) already carry the canonical values; an empty
+// field falls back to the upstream-known constant.
 func scmmHelmChartCoordinates(cfg *config.Config) (chart, repoURL, version string) {
-	chart = "scm-manager"
-	repoURL = "https://packages.scm-manager.org/repository/helm-v2-releases/"
-	version = "3.11.6"
-	m, ok := cfg.Scm.Raw["scmManager"].(map[string]any)
-	if !ok {
-		return
+	h := cfg.Scm.ScmManager.Helm
+	chart = h.Chart
+	repoURL = h.RepoURL
+	version = h.Version
+	if chart == "" {
+		chart = "scm-manager"
 	}
-	helm, ok := m["helm"].(map[string]any)
-	if !ok {
-		return
+	if repoURL == "" {
+		repoURL = "https://packages.scm-manager.org/repository/helm-v2-releases/"
 	}
-	if v, _ := helm["chart"].(string); v != "" {
-		chart = v
-	}
-	if v, _ := helm["repoURL"].(string); v != "" {
-		repoURL = v
-	}
-	if v, _ := helm["version"].(string); v != "" {
-		version = v
+	if version == "" {
+		version = "3.11.6"
 	}
 	return
 }
 
-// scmmHelmValues returns the user-supplied helm values block (or nil) plus
-// the raw map so callers can mutate without disturbing the source.
+// scmmHelmValues returns the user-supplied helm values block (or nil).
 func scmmHelmValues(cfg *config.Config) (map[string]any, bool) {
-	m, ok := cfg.Scm.Raw["scmManager"].(map[string]any)
-	if !ok {
+	v := cfg.Scm.ScmManager.Helm.Values
+	if len(v) == 0 {
 		return nil, false
 	}
-	helm, ok := m["helm"].(map[string]any)
-	if !ok {
-		return nil, false
-	}
-	values, ok := helm["values"].(map[string]any)
-	if !ok {
-		return nil, false
-	}
-	return values, true
+	return v, true
 }

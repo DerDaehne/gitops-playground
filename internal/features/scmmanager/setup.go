@@ -113,7 +113,7 @@ func (f Feature) Configure(ctx context.Context, cfg *config.Config) error {
 // Groovy `restartForThisPlugin = pluginName == pluginNames.last()`
 // pattern. When a restart was triggered we wait until the API is back.
 func (f Feature) installPlugins(ctx context.Context, cfg *config.Config) error {
-	if scmmBool(cfg, "skipPlugins") {
+	if cfg.Scm.ScmManager.SkipPlugins {
 		return nil
 	}
 
@@ -122,7 +122,7 @@ func (f Feature) installPlugins(ctx context.Context, cfg *config.Config) error {
 		plugins = append(plugins, jenkinsPlugin)
 	}
 
-	skipRestart := scmmBool(cfg, "skipRestart")
+	skipRestart := cfg.Scm.ScmManager.SkipRestart
 	var restartTriggered bool
 
 	for i, name := range plugins {
@@ -158,7 +158,7 @@ func (f Feature) installPlugins(ctx context.Context, cfg *config.Config) error {
 // Groovy payload byte-for-byte (modulo Jackson key ordering, which the
 // SCM-Manager API does not depend on).
 func (f Feature) applySetupConfig(ctx context.Context, cfg *config.Config) error {
-	baseURL := scmmString(cfg, "url")
+	baseURL := cfg.Scm.ScmManager.URL
 	if baseURL == "" {
 		// Internal mode: addScmConfig fills in scm.scmManager.url for
 		// external SCMM only. For the internal case the Groovy code sets
@@ -223,10 +223,10 @@ func (f Feature) configureJenkinsPlugin(ctx context.Context, cfg *config.Config)
 // password for both technical accounts and we preserve that behaviour to
 // keep configurator outputs interchangeable.
 func (f Feature) addDefaultUsers(ctx context.Context, cfg *config.Config) error {
-	password := scmmString(cfg, "password")
+	password := cfg.Scm.ScmManager.Password
 	gitOpsUser := f.Client.GitOpsUsername()
 	if gitOpsUser == "" {
-		gitOpsUser = scmmString(cfg, "gitOpsUsername")
+		gitOpsUser = cfg.Scm.ScmManager.GitOpsUsername
 	}
 	if gitOpsUser != "" {
 		if err := f.Client.EnsureUser(ctx, gitOpsUser, password, "", ""); err != nil {
@@ -242,16 +242,4 @@ func (f Feature) addDefaultUsers(ctx context.Context, cfg *config.Config) error 
 		return fmt.Errorf("grant metrics permission: %w", err)
 	}
 	return nil
-}
-
-// scmmBool reads cfg.Scm.Raw["scmManager"][key] as a bool. Missing keys
-// and wrong-typed values fall through as false – matching the way the
-// Groovy code treats unset booleans.
-func scmmBool(cfg *config.Config, key string) bool {
-	m, ok := cfg.Scm.Raw["scmManager"].(map[string]any)
-	if !ok {
-		return false
-	}
-	v, _ := m[key].(bool)
-	return v
 }

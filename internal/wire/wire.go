@@ -90,11 +90,9 @@ func Build(ctx context.Context, cfg *config.Config, opts BuildOptions) (*Compone
 		ArgoCDActive: func() bool { return cfg.Features.ArgoCD.Active && !cfg.Features.ArgoCD.Operator },
 	}
 
-	// SCM-Manager client. Only built when we are pointing at an internal
-	// instance; for the external case the feature short-circuits.
-	if scmm, _ := cfg.Scm.Raw["scmManager"].(map[string]any); scmm != nil {
-		c.SCM = buildScmm(cfg, opts.HTTPTimeout)
-	}
+	// SCM-Manager client. Always constructed; both internal and external
+	// SCMM modes need it for post-deploy configuration.
+	c.SCM = buildScmm(cfg, opts.HTTPTimeout)
 
 	jenkinsFactory := func(cfg *config.Config) (*jenkins.Client, error) {
 		baseURL := cfg.Jenkins.URL
@@ -215,18 +213,16 @@ func persistConfig(k *k8s.Client) func(ctx context.Context, cfg *config.Config) 
 }
 
 func buildScmm(cfg *config.Config, timeout time.Duration) *scmmanager.Client {
-	scmm := cfg.Scm.Raw["scmManager"].(map[string]any)
-	base, _ := scmm["url"].(string)
+	scmm := &cfg.Scm.ScmManager
+	base := scmm.URL
 	if base == "" {
-		base, _ = scmm["urlForJenkins"].(string)
+		base = scmm.UrlForJenkins
 	}
-	user, _ := scmm["username"].(string)
-	pass, _ := scmm["password"].(string)
 
 	httpClient := httpx.New(httpx.Options{
 		Insecure:  cfg.Application.Insecure,
 		Timeout:   timeout,
-		BasicAuth: &httpx.BasicAuth{User: user, Pass: pass},
+		BasicAuth: &httpx.BasicAuth{User: scmm.Username, Pass: scmm.Password},
 		Retry:     httpx.RetryPolicy{MaxAttempts: 3},
 	})
 	// scmmanager.Config expects the API base (the v2/v3 root, ending in
@@ -239,10 +235,11 @@ func buildScmm(cfg *config.Config, timeout time.Duration) *scmmanager.Client {
 	// User+password travel through the httpx BasicAuth transport; the
 	// scmmanager.Config keeps URL plumbing only.
 	return scmmanager.New(scmmanager.Config{
-		APIBase:       apiBase,
-		ClientBase:    base,
-		InClusterBase: base,
-		NamePrefix:    cfg.Application.NamePrefix,
+		APIBase:        apiBase,
+		ClientBase:     base,
+		InClusterBase:  base,
+		NamePrefix:     cfg.Application.NamePrefix,
+		GitOpsUsername: scmm.GitOpsUsername,
 	}, httpClient)
 }
 

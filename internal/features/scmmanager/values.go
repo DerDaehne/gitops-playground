@@ -42,7 +42,7 @@ func buildValues(cfg *config.Config) map[string]any {
 		},
 	}
 
-	if host := scmmString(cfg, "ingress"); host != "" {
+	if host := cfg.Scm.ScmManager.Ingress; host != "" {
 		ingress := map[string]any{
 			"enabled": true,
 			"path":    "/",
@@ -77,11 +77,11 @@ func buildValues(cfg *config.Config) map[string]any {
 // upstream chart's values.yaml documents extraEnv as a multi-line string
 // that gets concatenated into the deployment's env block verbatim.
 func extraEnvBlock(cfg *config.Config) string {
-	user := scmmString(cfg, "username")
+	user := cfg.Scm.ScmManager.Username
 	if user == "" {
 		user = cfg.Application.Username
 	}
-	pass := scmmString(cfg, "password")
+	pass := cfg.Scm.ScmManager.Password
 	if pass == "" {
 		pass = cfg.Application.Password
 	}

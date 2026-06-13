@@ -58,16 +58,69 @@ type JenkinsSchema struct {
 	Helm                        HelmConfigWithValues `yaml:"helm"`
 }
 
-// MultiTenantSchema matches Config.MultiTenantSchema (kept opaque for now).
-type MultiTenantSchema struct {
-	// Concrete fields will be added in Phase 2 alongside the SCM split.
-	Raw map[string]any `yaml:",inline"`
+// ScmSchema matches Config.ScmTenantSchema in the Groovy original. Yaml
+// keys are kept verbatim so existing config files keep working.
+type ScmSchema struct {
+	ScmProviderType string                 `yaml:"scmProviderType,omitempty"`
+	ScmManager      ScmManagerTenantSchema `yaml:"scmManager"`
+	Gitlab          GitlabTenantSchema     `yaml:"gitlab"`
 }
 
-// ScmSchema matches Config.ScmTenantSchema (kept opaque for now; Phase 2
-// fills in the specifics, see ScmTenantSchema.groovy + ScmCentralSchema).
-type ScmSchema struct {
-	Raw map[string]any `yaml:",inline"`
+// ScmManagerTenantSchema matches ScmTenantSchema.ScmManagerTenantConfig.
+type ScmManagerTenantSchema struct {
+	Internal       bool                 `yaml:"internal"`
+	URL            string               `yaml:"url"`
+	Namespace      string               `yaml:"namespace"`
+	Username       string               `yaml:"username"`
+	Password       string               `yaml:"password"`
+	UrlForJenkins  string               `yaml:"urlForJenkins"`
+	Ingress        string               `yaml:"ingress"`
+	SkipRestart    bool                 `yaml:"skipRestart"`
+	SkipPlugins    bool                 `yaml:"skipPlugins"`
+	GitOpsUsername string               `yaml:"gitOpsUsername"`
+	Helm           HelmConfigWithValues `yaml:"helm"`
+}
+
+// GitlabTenantSchema matches ScmTenantSchema.GitlabTenantConfig.
+type GitlabTenantSchema struct {
+	Internal          bool   `yaml:"internal"`
+	URL               string `yaml:"url"`
+	Username          string `yaml:"username"`
+	Password          string `yaml:"password"`
+	ParentGroupId     string `yaml:"parentGroupId"`
+	GitOpsUsername    string `yaml:"gitOpsUsername"`
+	DefaultVisibility string `yaml:"defaultVisibility,omitempty"`
+}
+
+// MultiTenantSchema matches Config.MultiTenantSchema in the Groovy
+// original. Yaml keys are kept verbatim.
+type MultiTenantSchema struct {
+	ScmProviderType        string                  `yaml:"scmProviderType,omitempty"`
+	Gitlab                 GitlabCentralSchema     `yaml:"gitlab"`
+	ScmManager             ScmManagerCentralSchema `yaml:"scmManager"`
+	CentralArgocdNamespace string                  `yaml:"centralArgocdNamespace,omitempty"`
+	UseDedicatedInstance   bool                    `yaml:"useDedicatedInstance"`
+}
+
+// GitlabCentralSchema is the central counterpart of GitlabTenantSchema.
+type GitlabCentralSchema struct {
+	Internal       bool   `yaml:"internal"`
+	URL            string `yaml:"url"`
+	Username       string `yaml:"username"`
+	Password       string `yaml:"password"`
+	ParentGroupId  string `yaml:"parentGroupId"`
+	GitOpsUsername string `yaml:"gitOpsUsername"`
+}
+
+// ScmManagerCentralSchema is the central counterpart of
+// ScmManagerTenantSchema.
+type ScmManagerCentralSchema struct {
+	Internal       bool   `yaml:"internal"`
+	URL            string `yaml:"url"`
+	Username       string `yaml:"username"`
+	Password       string `yaml:"password"`
+	Namespace      string `yaml:"namespace"`
+	GitOpsUsername string `yaml:"gitOpsUsername"`
 }
 
 // ApplicationSchema matches Config.ApplicationSchema.

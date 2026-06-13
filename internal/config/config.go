@@ -104,6 +104,29 @@ func New() *Config {
 			GitName:  "Cloudogu",
 			GitEmail: "hello@cloudogu.com",
 		},
+		Scm: ScmSchema{
+			ScmProviderType: "SCM_MANAGER",
+			ScmManager: ScmManagerTenantSchema{
+				Internal:  true,
+				Namespace: "scm-manager",
+				Username:  DefaultAdminUser,
+				Password:  DefaultAdminPW,
+				Helm: HelmConfigWithValues{
+					HelmConfig: HelmConfig{
+						Chart:   "scm-manager",
+						RepoURL: "https://packages.scm-manager.org/repository/helm-v2-releases/",
+						Version: "3.11.6",
+					},
+				},
+			},
+			Gitlab: GitlabTenantSchema{
+				Username: "oauth2.0",
+			},
+		},
+		MultiTenant: MultiTenantSchema{
+			ScmProviderType:        "SCM_MANAGER",
+			CentralArgocdNamespace: "argocd",
+		},
 		Features: FeaturesSchema{
 			ArgoCD: ArgoCDSchema{
 				EmailFrom:    "argocd@example.org",

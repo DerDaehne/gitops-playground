@@ -18,13 +18,9 @@ import (
 func withInternalScm(t *testing.T) *config.Config {
 	t.Helper()
 	cfg := config.New()
-	cfg.Scm.Raw = map[string]any{
-		"scmManager": map[string]any{
-			"url":      "",
-			"username": "admin",
-			"password": "admin",
-		},
-	}
+	cfg.Scm.ScmManager.URL = ""
+	cfg.Scm.ScmManager.Username = "admin"
+	cfg.Scm.ScmManager.Password = "admin"
 	return cfg
 }
 
@@ -51,7 +47,7 @@ func TestIsEnabled_EmptyURLIsInternal(t *testing.T) {
 
 func TestIsEnabled_ExternalURLDisablesFeature(t *testing.T) {
 	cfg := withInternalScm(t)
-	cfg.Scm.Raw["scmManager"].(map[string]any)["url"] = "https://scmm.example.org"
+	cfg.Scm.ScmManager.URL = "https://scmm.example.org"
 	if isInternal(cfg) {
 		t.Fatalf("non-empty url should switch off internal mode")
 	}
@@ -67,7 +63,7 @@ func TestNamespace_UsesPrefixAndOverride(t *testing.T) {
 		t.Errorf("Namespace = %q, want %q", got, want)
 	}
 
-	cfg.Scm.Raw["scmManager"].(map[string]any)["namespace"] = "scmm-custom"
+	cfg.Scm.ScmManager.Namespace = "scmm-custom"
 	if got, want := (Feature{}).Namespace(cfg), "tenant-scmm-custom"; got != want {
 		t.Errorf("Namespace (override) = %q, want %q", got, want)
 	}
@@ -75,7 +71,7 @@ func TestNamespace_UsesPrefixAndOverride(t *testing.T) {
 
 func TestValidate_RequiresCredentials(t *testing.T) {
 	cfg := withInternalScm(t)
-	cfg.Scm.Raw["scmManager"].(map[string]any)["password"] = ""
+	cfg.Scm.ScmManager.Password = ""
 	if err := (Feature{}).Validate(context.Background(), cfg); err == nil {
 		t.Fatalf("Validate should error on empty password")
 	}
@@ -83,8 +79,8 @@ func TestValidate_RequiresCredentials(t *testing.T) {
 
 func TestValidate_ExternalSkipsChecks(t *testing.T) {
 	cfg := withInternalScm(t)
-	cfg.Scm.Raw["scmManager"].(map[string]any)["url"] = "https://scmm.example.org"
-	cfg.Scm.Raw["scmManager"].(map[string]any)["password"] = ""
+	cfg.Scm.ScmManager.URL = "https://scmm.example.org"
+	cfg.Scm.ScmManager.Password = ""
 	if err := (Feature{}).Validate(context.Background(), cfg); err != nil {
 		t.Fatalf("Validate should be a no-op when external, got %v", err)
 	}
@@ -96,7 +92,7 @@ func TestValidate_RequiresUrlForJenkinsWhenActive(t *testing.T) {
 	if err := f.Validate(context.Background(), cfg); err == nil {
 		t.Fatalf("Validate should error when jenkins is active and urlForJenkins is empty")
 	}
-	cfg.Scm.Raw["scmManager"].(map[string]any)["urlForJenkins"] = "http://jenkins.example/"
+	cfg.Scm.ScmManager.UrlForJenkins = "http://jenkins.example/"
 	if err := f.Validate(context.Background(), cfg); err != nil {
 		t.Fatalf("Validate should pass once urlForJenkins is set, got %v", err)
 	}
@@ -124,7 +120,7 @@ func TestBuildValues_BaseShape(t *testing.T) {
 
 func TestBuildValues_IngressWithCertManager(t *testing.T) {
 	cfg := withInternalScm(t)
-	cfg.Scm.Raw["scmManager"].(map[string]any)["ingress"] = "scmm.example.org"
+	cfg.Scm.ScmManager.Ingress = "scmm.example.org"
 	cfg.Features.CertManager.Active = true
 	cfg.Features.CertManager.Issuer = "letsencrypt"
 
@@ -156,7 +152,7 @@ func TestBuildValues_IngressWithCertManager(t *testing.T) {
 
 func TestBuildValues_IngressWithoutCertManager(t *testing.T) {
 	cfg := withInternalScm(t)
-	cfg.Scm.Raw["scmManager"].(map[string]any)["ingress"] = "scmm.example.org"
+	cfg.Scm.ScmManager.Ingress = "scmm.example.org"
 
 	v := buildValues(cfg)
 	ing, _ := v["ingress"].(map[string]any)

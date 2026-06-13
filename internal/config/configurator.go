@@ -107,25 +107,18 @@ func addRegistryConfig(cfg *Config) error {
 	return nil
 }
 
-// addScmConfig mirrors the SCM section of ApplicationConfigurator. Until
-// the typed SCM schema lands in Phase 3 we operate on the opaque Raw map
-// so that the CLI does not break when a config sets `scm.scmManager.url`.
-//
-// For Phase 2 this is purposely conservative: the only thing the Groovy
-// version does at init time is derive `urlForJenkins`, `ingress`, the
-// `internal` flag and default the admin user/password. The deeper SCM
-// modelling is part of the Phase 3 SCM adapter SPEC.
+// addScmConfig mirrors the SCM section of ApplicationConfigurator from
+// the Groovy original. It derives urlForJenkins, ingress, internal and
+// defaults admin user/password from the application credentials when
+// missing.
 func addScmConfig(cfg *Config) error {
-	if cfg.Scm.Raw == nil {
-		cfg.Scm.Raw = map[string]any{}
-	}
-	scmm := getOrMakeMap(cfg.Scm.Raw, "scmManager")
+	scmm := &cfg.Scm.ScmManager
 
-	if u, _ := scmm["url"].(string); u != "" {
-		scmm["internal"] = false
-		scmm["urlForJenkins"] = u
+	if scmm.URL != "" {
+		scmm.Internal = false
+		scmm.UrlForJenkins = scmm.URL
 	} else {
-		scmm["urlForJenkins"] = fmt.Sprintf(
+		scmm.UrlForJenkins = fmt.Sprintf(
 			"http://scmm.%sscm-manager.svc.cluster.local/scm",
 			cfg.Application.NamePrefix,
 		)
@@ -136,17 +129,14 @@ func addScmConfig(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid baseUrl %q: %w", cfg.Application.BaseURL, err)
 		}
-		scmm["ingress"] = host
+		scmm.Ingress = host
 	}
 
-	// Default user/password fall-through. The Groovy code uses a generated
-	// admin password sentinel; in Go we treat empty as the trigger to fall
-	// back to the application credentials.
-	if v, _ := scmm["username"].(string); v == "" {
-		scmm["username"] = cfg.Application.Username
+	if scmm.Username == "" {
+		scmm.Username = cfg.Application.Username
 	}
-	if v, _ := scmm["password"].(string); v == "" {
-		scmm["password"] = cfg.Application.Password
+	if scmm.Password == "" {
+		scmm.Password = cfg.Application.Password
 	}
 	return nil
 }
@@ -210,15 +200,9 @@ func evaluateBaseURL(cfg *Config) error {
 	return nil
 }
 
-// setMultiTenantModeConfig mirrors the Groovy side guards. We use the Raw
-// map until the typed MultiTenant schema is fleshed out in Phase 3.
+// setMultiTenantModeConfig mirrors the Groovy side guards.
 func setMultiTenantModeConfig(cfg *Config) error {
-	mt := cfg.MultiTenant.Raw
-	if mt == nil {
-		return nil
-	}
-	dedicated, _ := mt["useDedicatedInstance"].(bool)
-	if !dedicated {
+	if !cfg.MultiTenant.UseDedicatedInstance {
 		return nil
 	}
 	if cfg.Application.NamePrefix == "" {
@@ -227,9 +211,8 @@ func setMultiTenantModeConfig(cfg *Config) error {
 	if !cfg.Features.ArgoCD.Operator {
 		cfg.Features.ArgoCD.Operator = true
 	}
-	scmm := getOrMakeMap(mt, "scmManager")
-	if u, ok := scmm["url"].(string); ok && u != "" {
-		scmm["url"] = strings.TrimRight(u, "/")
+	if cfg.MultiTenant.ScmManager.URL != "" {
+		cfg.MultiTenant.ScmManager.URL = strings.TrimRight(cfg.MultiTenant.ScmManager.URL, "/")
 	}
 	cfg.Features.Ingress.Active = false
 	return nil
@@ -288,13 +271,4 @@ func injectSubdomainHost(subdomain, baseURL string, hyphen bool) (string, error)
 		return "", err
 	}
 	return u.Host, nil
-}
-
-func getOrMakeMap(parent map[string]any, key string) map[string]any {
-	if v, ok := parent[key].(map[string]any); ok {
-		return v
-	}
-	m := map[string]any{}
-	parent[key] = m
-	return m
 }
