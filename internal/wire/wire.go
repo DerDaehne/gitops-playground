@@ -143,6 +143,7 @@ func Build(ctx context.Context, cfg *config.Config, opts BuildOptions) (*Compone
 			Git:    gitService,
 			SCM:    c.SCM, // SCM-Manager provider, may be nil for first-bootstrap edge cases
 			Images: images,
+			K8s:    argocdK8s(c.K8s), // nil under DryRun; Install errors clearly in that case
 		},
 		fvault.Feature{Deploy: c.Deploy, Images: images},
 		feso.Feature{Deploy: c.Deploy, Images: images},
@@ -274,4 +275,15 @@ func (a imagePullAdapter) CreateImagePullSecret(ctx context.Context, name, names
 	}
 	// k8s.ApplyDockerConfigSecret takes namespace before name.
 	return a.k.ApplyDockerConfigSecret(ctx, namespace, name, registryURL, user, password)
+}
+
+// argocdK8s converts a *k8s.Client to fargocd.K8s. Returning nil for a
+// nil client avoids the typed-nil-interface pitfall (an interface
+// holding a (*T)(nil) compares non-nil); argocd.applyAdminPasswordSecret
+// relies on the plain nil check to refuse a dry-run install.
+func argocdK8s(k *k8s.Client) fargocd.K8s {
+	if k == nil {
+		return nil
+	}
+	return k
 }

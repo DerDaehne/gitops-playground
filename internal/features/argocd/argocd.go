@@ -65,12 +65,18 @@ const (
 // Deploy is the generic strategy used by other features so that registry
 // state stays consistent. ArgoCD's own install path bypasses it (the
 // non-operator branch goes straight through Helm).
+//
+// K8s is the narrow Kubernetes surface used for the post-install
+// argocd-secret patch (see install.go). It is an interface to keep
+// argocd.Feature testable without a live cluster; the production binding
+// is *internal/k8s.Client.
 type Feature struct {
 	Deploy deployment.Strategy
 	Helm   *helm.Client
 	Git    git.Service
 	SCM    scm.Provider
 	Images feature.ImagePullSecretCreator
+	K8s    K8s
 }
 
 // Name implements feature.Feature.
@@ -135,13 +141,11 @@ func (Feature) PostConfigInit(cfg *config.Config) error {
 //	else:
 //	  - prepare the cluster-resources repo (without the operator tree)
 //	  - render programmatic helm values
-//	  - the runner does helm repo add / dependency build / upgrade and
-//	    patches the bcrypt'd admin password into argocd-secret.
+//	  - helm repo add / dependency build / upgrade the umbrella chart
+//	  - patch the bcrypt'd admin password into argocd-secret.
 //
-// The k8s-level steps (patch, applyYaml, wait, secret-create) intentionally
-// land in the runner in phase 3c – this method owns the shape and the
-// branch but stops at "values rendered, repo pushed". Operator mode never
-// renders helm values.
+// Operator mode never renders helm values; the runner applies the CR
+// imperatively after Install returns.
 func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 	ns := f.Namespace(cfg)
 
@@ -174,8 +178,11 @@ func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 		return nil
 	}
 
-	// Non-operator mode: render umbrella values for the runner to feed
-	// into helm.
+	// Non-operator mode: render umbrella values, then `helm repo add` +
+	// `helm dependency build` + `helm upgrade -i argocd <chart>`. We
+	// don't go through f.Deploy here because the umbrella chart is the
+	// one we just pushed to git – it has to be installed imperatively,
+	// the same way Registry.groovy bypasses the deployer.
 	values := buildValues(cfg)
 	valuesPath, cleanup, err := deployment.RenderHelmValues(cfg, deployment.HelmValuesRequest{
 		InlineValues: cfg.Features.ArgoCD.Values,
@@ -186,11 +193,18 @@ func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 	}
 	defer cleanup()
 
-	// We don't go through f.Deploy here because the umbrella chart is the
-	// one we just pushed to git – it has to be installed imperatively, the
-	// same way Registry.groovy bypasses the deployer. The runner will pick
-	// up valuesPath and call helm directly via f.Helm in phase 3c.
-	_ = valuesPath
-	_ = releaseName
+	clusterLayout, err := setup.ClusterRepoLayout()
+	if err != nil {
+		return fmt.Errorf("argocd: locate umbrella chart: %w", err)
+	}
+	chartPath := clusterLayout.HelmDir()
+
+	if err := installViaHelmWithValues(ctx, f.Helm, chartPath, ns, valuesPath); err != nil {
+		return err
+	}
+
+	if err := applyAdminPasswordSecret(ctx, f.K8s, cfg, ns); err != nil {
+		return err
+	}
 	return nil
 }
