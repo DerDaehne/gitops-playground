@@ -186,6 +186,38 @@ func (f Feature) Install(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
+// ConfigureExternal implements feature.ExternalConfigurator. The runner
+// fires this hook in the disabled branch, so it only does work for the
+// "SCM-Manager is provided externally" case. The internal install path
+// still drives Configure from Install — this method is the missing twin
+// for the external case (see F-Arch-4 in docs/PLAN-PHASE13.md).
+//
+// We deliberately no-op when there is nothing to do (no URL, no API
+// client). Callers should be able to invoke this unconditionally
+// without sprinkling type-assertion guards at every call site.
+func (f Feature) ConfigureExternal(ctx context.Context, cfg *config.Config) error {
+	if cfg == nil {
+		return nil
+	}
+	if isInternal(cfg) {
+		// Internal mode runs Configure from Install; nothing to do here.
+		return nil
+	}
+	if cfg.Scm.ScmManager.URL == "" {
+		return nil
+	}
+	if f.Client == nil {
+		return nil
+	}
+	if err := f.WaitForAvailable(ctx, defaultWaitTimeout); err != nil {
+		return fmt.Errorf("scm-manager: wait for available: %w", err)
+	}
+	if err := f.Configure(ctx, cfg); err != nil {
+		return fmt.Errorf("scm-manager: configure: %w", err)
+	}
+	return nil
+}
+
 // isInternal reports whether SCM-Manager runs inside the cluster. With
 // the typed schema, the gate collapses to "no URL = internal".
 func isInternal(cfg *config.Config) bool {

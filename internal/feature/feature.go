@@ -66,3 +66,28 @@ type PreConfigInit interface {
 type PostConfigInit interface {
 	PostConfigInit(cfg *config.Config) error
 }
+
+// ExternalConfigurator is implemented by features that have a
+// post-deploy configuration step which must run even when the
+// feature itself is externally provided (and therefore IsEnabled
+// returns false).
+//
+// The runner fires ConfigureExternal in the same disabled-branch where
+// it would otherwise only call Disable, after Validate. Implementers
+// should no-op when the external pre-conditions (e.g. an API client,
+// a base URL) are not met, so they stay safe to call unconditionally.
+type ExternalConfigurator interface {
+	ConfigureExternal(ctx context.Context, cfg *config.Config) error
+}
+
+// MaybeConfigureExternal invokes ConfigureExternal on f if it
+// implements ExternalConfigurator and returns true; otherwise it
+// returns false with a nil error. Keeps the type assertion in one
+// place so callers (the runner, tests) do not duplicate it.
+func MaybeConfigureExternal(ctx context.Context, f Feature, cfg *config.Config) (bool, error) {
+	ec, ok := f.(ExternalConfigurator)
+	if !ok {
+		return false, nil
+	}
+	return true, ec.ConfigureExternal(ctx, cfg)
+}

@@ -218,3 +218,108 @@ func TestWaitForAvailable_NoClient(t *testing.T) {
 		t.Errorf("WaitForAvailable without a client should error")
 	}
 }
+
+// TestConfigureExternal_RunsAgainstExternalSCMM walks the external
+// path end-to-end against an httptest server: WaitForAvailable
+// succeeds, the plugin install loop fires, /v2/config is PUT
+// (applySetupConfig), and the gitops + metrics users are created.
+// This is the WP-B2 acceptance: an externally-provided SCMM must get
+// its bootstrap config even though IsEnabled returns false.
+func TestConfigureExternal_RunsAgainstExternalSCMM(t *testing.T) {
+	var (
+		pluginInstalls int32
+		setConfigCalls int32
+		userCreates    int32
+		permGrants     int32
+	)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/scm/api/v2"):
+			// availability probe
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/v2/plugins/available/"):
+			atomic.AddInt32(&pluginInstalls, 1)
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/v2/config"):
+			atomic.AddInt32(&setConfigCalls, 1)
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/v2/users"):
+			atomic.AddInt32(&userCreates, 1)
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/v2/users/") && strings.HasSuffix(r.URL.Path, "/permissions"):
+			atomic.AddInt32(&permGrants, 1)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Logf("unexpected %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}
+	srv := httptest.NewServer(http.HandlerFunc(handler))
+	t.Cleanup(srv.Close)
+
+	client := scmmclient.New(scmmclient.Config{
+		APIBase:        srv.URL + "/scm/api/",
+		GitOpsUsername: "gitops",
+	}, srv.Client())
+
+	cfg := config.New()
+	cfg.Scm.ScmManager.URL = srv.URL + "/scm"
+	cfg.Scm.ScmManager.Username = "admin"
+	cfg.Scm.ScmManager.Password = "admin"
+	cfg.Scm.ScmManager.GitOpsUsername = "gitops"
+	// Skip the trailing restart so the test does not need to fake the
+	// /v2 polling cycle that the plugin restart triggers.
+	cfg.Scm.ScmManager.SkipRestart = true
+
+	f := Feature{
+		Client:       client,
+		PollInterval: 10 * time.Millisecond,
+	}
+
+	// Sanity: IsEnabled stays false for the external case. WP-B2's
+	// whole point is that ConfigureExternal still runs.
+	if f.IsEnabled(cfg) {
+		t.Fatalf("IsEnabled should be false for an external URL")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := f.ConfigureExternal(ctx, cfg); err != nil {
+		t.Fatalf("ConfigureExternal: %v", err)
+	}
+
+	if atomic.LoadInt32(&pluginInstalls) == 0 {
+		t.Errorf("expected plugin installs to fire, got 0")
+	}
+	if got := atomic.LoadInt32(&setConfigCalls); got != 1 {
+		t.Errorf("/v2/config PUT calls: want 1, got %d", got)
+	}
+	if got := atomic.LoadInt32(&userCreates); got < 2 {
+		t.Errorf("expected at least gitops + metrics user creates, got %d", got)
+	}
+	if got := atomic.LoadInt32(&permGrants); got != 1 {
+		t.Errorf("expected one metrics permission grant, got %d", got)
+	}
+}
+
+// TestConfigureExternal_NoOpForInternal is the negative twin: when
+// SCMM runs internally, Install drives Configure — ConfigureExternal
+// must stay out of the way.
+func TestConfigureExternal_NoOpForInternal(t *testing.T) {
+	cfg := withInternalScm(t)
+	if err := (Feature{}).ConfigureExternal(context.Background(), cfg); err != nil {
+		t.Fatalf("ConfigureExternal on internal config should be a no-op, got %v", err)
+	}
+}
+
+// TestConfigureExternal_NoClientIsNoOp documents the safe-call
+// contract: an external URL with no API client wired in still returns
+// nil so the runner can call this unconditionally.
+func TestConfigureExternal_NoClientIsNoOp(t *testing.T) {
+	cfg := withInternalScm(t)
+	cfg.Scm.ScmManager.URL = "https://scmm.example.org"
+	if err := (Feature{}).ConfigureExternal(context.Background(), cfg); err != nil {
+		t.Fatalf("ConfigureExternal without a client should be a no-op, got %v", err)
+	}
+}

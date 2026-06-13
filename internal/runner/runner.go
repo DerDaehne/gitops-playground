@@ -57,6 +57,17 @@ func (r Runner) Install(ctx context.Context, cfg *config.Config) error {
 			if err := f.Disable(ctx, cfg); err != nil {
 				return fmt.Errorf("disable %s: %w", f.Name(), err)
 			}
+			// A disabled feature may still expose a post-deploy
+			// configuration step for the external-provider case
+			// (e.g. an external SCM-Manager that still needs the
+			// namespace strategy and gitops user). Order: always
+			// after Validate, never before.
+			if ec, ok := f.(feature.ExternalConfigurator); ok {
+				slog.Info("configuring external feature", "name", f.Name())
+				if err := ec.ConfigureExternal(ctx, cfg); err != nil {
+					return fmt.Errorf("configure external %s: %w", f.Name(), err)
+				}
+			}
 			continue
 		}
 		slog.Info("installing feature", "name", f.Name())
